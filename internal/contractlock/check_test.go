@@ -15,7 +15,7 @@ func TestRepositoryLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Baseline != Baseline || report.ManifestRevision != 7 || report.Families != 11 || report.Operations != 81 {
+	if report.Baseline != Baseline || report.ManifestRevision != 17 || report.Families != 12 || report.Operations != 91 {
 		t.Fatalf("wrong baseline report: %+v", report)
 	}
 }
@@ -110,7 +110,7 @@ func TestCheckRejectsDrift(t *testing.T) {
 		{"lock revision", func(t *testing.T, f *fixture) {
 			f.lock.ManifestRevision++
 			f.saveLock(t)
-		}, "frozen baseline requires 7"},
+		}, "frozen baseline requires 17"},
 		{"missing manifest", func(t *testing.T, f *fixture) {
 			f.lock.Files = f.lock.Files[1:]
 			f.saveLock(t)
@@ -118,11 +118,19 @@ func TestCheckRejectsDrift(t *testing.T) {
 		{"operation count", func(t *testing.T, f *fixture) {
 			f.manifest.Operations = f.manifest.Operations[:80]
 			f.saveManifest(t)
-		}, "require 11 / 81"},
+		}, "require 12 / 91"},
 		{"invalid source SHA", func(t *testing.T, f *fixture) {
 			f.lock.SourceCommit = "HEAD"
 			f.saveLock(t)
 		}, "40-digit Git SHA"},
+		{"public family cannot use historical reference pin", func(t *testing.T, f *fixture) {
+			f.lock.Files[1].SourceCommit = f.lock.SourceCommit
+			f.saveLock(t)
+		}, "per-file sourceCommit"},
+		{"invalid historical reference SHA", func(t *testing.T, f *fixture) {
+			f.lock.Files[len(f.lock.Files)-1].SourceCommit = "HEAD"
+			f.saveLock(t)
+		}, "per-file sourceCommit"},
 		{"invalid file SHA", func(t *testing.T, f *fixture) {
 			f.lock.Files[1].SHA256 = "SHA256:abc"
 			f.saveLock(t)
@@ -166,6 +174,56 @@ func TestValidPaths(t *testing.T) {
 	}
 	if !validPath("reference/中文/contract.json") {
 		t.Error("valid UTF-8 source path rejected")
+	}
+}
+
+func TestSourceOnlyMetadataNeverClaimsPrivateBytes(t *testing.T) {
+	f := newFixture(t)
+	file := f.lock.Files[1]
+	f.lock.SourceOnly = []SourceFact{{Source: file.Source, SHA256: file.SHA256}}
+	f.lock.Files = append(f.lock.Files[:1], f.lock.Files[2:]...)
+	f.saveLock(t)
+	r, err := Check(f.dir, "")
+	if err != nil || r.SourceOnlyMetadata != 1 || r.SourceOnlyBytesVerified {
+		t.Fatal(r, err)
+	}
+	f.lock.SourceOnly[0].SHA256 = strings.Repeat("a", 64)
+	f.saveLock(t)
+	if _, err = Check(f.dir, ""); err == nil {
+		t.Fatal("source-only hash detached from manifest")
+	}
+}
+
+func TestHistoricalReferenceRemainsAtOriginalGitBytes(t *testing.T) {
+	f := newFixture(t)
+	source := t.TempDir()
+	for _, file := range f.lock.Files {
+		b, e := os.ReadFile(filepath.Join(f.dir, file.Path))
+		if e != nil {
+			t.Fatal(e)
+		}
+		write(t, filepath.Join(source, file.Source), b)
+	}
+	runGit(t, source, "init", "--quiet")
+	commit := func() {
+		runGit(t, source, "-c", "core.autocrlf=false", "add", "--all")
+		runGit(t, source, "-c", "user.name=Contract Test", "-c", "user.email=contract-test@localhost", "-c", "commit.gpgsign=false", "-c", "core.hooksPath="+filepath.Join(source, "no-hooks"), "commit", "--quiet", "-m", "fixture")
+	}
+	commit()
+	original := runGit(t, source, "rev-parse", "HEAD")
+	ref := &f.lock.Files[len(f.lock.Files)-1]
+	ref.SourceCommit = original
+	write(t, filepath.Join(source, ref.Source), []byte("new private implementation deliberately not distributed"))
+	commit()
+	f.lock.SourceCommit = runGit(t, source, "rev-parse", "HEAD")
+	f.saveLock(t)
+	if _, err := Check(f.dir, source); err != nil {
+		t.Fatal("historical reference falsely required private upgrade", err)
+	}
+	ref.SourceCommit = f.lock.SourceCommit
+	f.saveLock(t)
+	if _, err := Check(f.dir, source); err == nil {
+		t.Fatal("wrong historical Git pin accepted")
 	}
 }
 
@@ -243,9 +301,9 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	f := &fixture{dir: t.TempDir()}
 	f.lock = Lock{Format: Format, Baseline: Baseline, SourceRepo: "cpple/tansr", SourceBranch: "main",
-		SourceCommit: strings.Repeat("0", 40), ManifestRevision: 7, FamilyCount: 11, OperationCount: 81, Policy: "immutable test baseline"}
+		SourceCommit: strings.Repeat("0", 40), ManifestRevision: 17, FamilyCount: 12, OperationCount: 91, Policy: "immutable test baseline"}
 	f.lock.Files = []File{{Path: "api-manifest.json", Source: manifestSource, Role: "contract"}}
-	f.manifest = manifest{Format: "tansr-api-manifest-v1", Contract: "unified-v1", Revision: 7}
+	f.manifest = manifest{Format: "tansr-api-manifest-v1", Contract: "unified-v1", Revision: 17}
 	var familyHashes []string
 	for _, id := range requiredFamilies {
 		source, golden := "source/"+id+".json", "golden/"+id+".json"
@@ -265,7 +323,7 @@ func newFixture(t *testing.T) *fixture {
 	sort.Strings(familyHashes)
 	f.manifest.SchemaHash = digest([]byte(strings.Join(familyHashes, "")))
 	f.lock.SchemaHash = f.manifest.SchemaHash
-	for range 81 {
+	for range 91 {
 		f.manifest.Operations = append(f.manifest.Operations, json.RawMessage(`{"name":"fixture"}`))
 	}
 	data := []byte("reference implementation, not protocol authority")

@@ -28,6 +28,7 @@ var magic = []byte("Tansr-Go-TerminalPersistence/1\n")
 // Each mutation replaces one snapshot, including reference reclamation. Historical
 // tickets retain Root results, not a promise to retain unreferenced historical bodies.
 type FileStore struct {
+	custodyAssert               func() error
 	mu                          sync.Mutex
 	options                     Options
 	root                        *os.Root
@@ -180,6 +181,15 @@ func OpenFileStore(o Options) (*FileStore, error) {
 }
 
 func openFileStore(o Options, seed obj, copyOnly bool) (_ *FileStore, err error) {
+	if (o.Custody == nil) != (o.CustodyAuthority == nil) {
+		return nil, AdapterError("invalid_request")
+	}
+	if o.MigrationBudget == (MigrationBudget{}) {
+		o.MigrationBudget = DefaultMigrationBudget()
+	}
+	if custodyValidate("MigrationBudget", o.MigrationBudget) != nil || o.Custody != nil && custodyValidate("Custody", *o.Custody) != nil {
+		return nil, AdapterError("invalid_request")
+	}
 	if !filepath.IsAbs(o.Path) || len(o.Key) != 32 || o.CurrentScope == nil || (o.Mode != "create" && o.Mode != "reopen") {
 		return nil, AdapterError("invalid_request")
 	}
@@ -268,6 +278,13 @@ func openFileStore(o Options, seed obj, copyOnly bool) (_ *FileStore, err error)
 		if seed != nil {
 			s.state = seed
 		}
+		if o.Custody != nil && s.state["custodySelection"] == nil {
+			selection, e := custodyNormalize("Custody", *o.Custody)
+			if e != nil {
+				return nil, e
+			}
+			s.state["custodySelection"] = selection
+		}
 		if err = s.save(s.state, before, context.Background()); err != nil {
 			return nil, err
 		}
@@ -311,6 +328,10 @@ func (s *FileStore) load() error {
 	if e != nil {
 		return ErrIntegrity
 	}
+	// A migrated domain must never become an unfenced legacy writer on reopen.
+	if (state["custodyMigration"] != nil || state["custodySelection"] != nil) && !s.CustodyHandoffEnabled() {
+		return AdapterError("capability_unavailable")
+	}
 	marker, present := state["readOnlyCopy"]
 	if present && marker != true {
 		return ErrIntegrity
@@ -329,6 +350,11 @@ func (s *FileStore) load() error {
 	return nil
 }
 func (s *FileStore) guard(before executor.Scope, ctx context.Context) error {
+	if s.custodyAssert != nil {
+		if e := s.custodyAssert(); e != nil {
+			return e
+		}
+	}
 	if e := ctx.Err(); e != nil {
 		return e
 	}
@@ -475,6 +501,9 @@ func (s *FileStore) save(st obj, before executor.Scope, ctx context.Context) err
 		s.uncertain = true
 		return errors.Join(ErrUnknown, e)
 	}
+	if e = s.guard(before, ctx); e != nil {
+		return e
+	}
 	if e = atomicmedia.ReplaceDurable(s.root, s.options.Path, temp); e != nil {
 		s.uncertain = true
 		return errors.Join(ErrUnknown, e)
@@ -500,7 +529,7 @@ func (s *FileStore) save(st obj, before executor.Scope, ctx context.Context) err
 }
 func (s *FileStore) Identity() Identity         { return s.options.Identity }
 func (s *FileStore) Capabilities() Capabilities { return Capabilities{true, true} }
-func (s *FileStore) Execute(ctx context.Context, input Request, owner Owner) (Response, error) {
+func (s *FileStore) Execute(ctx context.Context, input Request, owner Owner) (output Response, outcome error) {
 	r, e := normalize(input)
 	if e != nil {
 		return nil, e
@@ -536,6 +565,15 @@ func (s *FileStore) Execute(ctx context.Context, input Request, owner Owner) (Re
 	}
 	if s.copyOnly && r["action"] != "head" && r["action"] != "read" && r["action"] != "lookup" && r["action"] != "query" {
 		return nil, AdapterError("read_only_copy")
+	}
+	lease, e := s.beginWriter(ctx, r)
+	if e != nil {
+		return nil, e
+	}
+	if lease != nil {
+		commits := s.commits
+		s.custodyAssert = lease.AssertCurrent
+		defer func() { s.custodyAssert = nil; outcome = s.finishWriter(ctx, lease, commits, output, outcome) }()
 	}
 	state := m(detached(s.state))
 	newAdmission := false

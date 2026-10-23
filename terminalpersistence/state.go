@@ -689,7 +689,17 @@ func (e *engine) commit(row obj) {
 func (e *engine) audit(id Identity, limits Limits) (err error) {
 	defer caught(&err)
 	s := e.state
-	need(exact(s, "format", "identity", "limits", "root", "objects", "transfers", "primary", "secondary", "writes", "encryptedBytes") && s["format"] == format && same(s["identity"], id) && same(s["limits"], limits))
+	base := fields(s, "format", "identity", "limits", "root", "objects", "transfers", "primary", "secondary", "writes", "encryptedBytes")
+	extra := 0
+	if v, ok := s["custodySelection"]; ok {
+		need(custodyValidate("Custody", v) == nil)
+		extra++
+	}
+	if v, ok := s["custodyMigration"]; ok {
+		need(v != nil)
+		extra++
+	}
+	need(len(s) == len(base)+extra && s["format"] == format && same(s["identity"], id) && same(s["limits"], limits))
 	need(n(s["writes"]) >= 1 && n(s["writes"]) <= 1<<20 && n(s["encryptedBytes"]) >= 1 && int64(n(s["encryptedBytes"])) <= 1<<36)
 	for k, v := range m(s["objects"]) {
 		o := m(v)

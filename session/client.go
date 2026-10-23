@@ -76,7 +76,7 @@ func (c *Client) Create(ctx context.Context, options CreateOptions) (*Session, e
 	}
 	if wire.SessionID == "" || wire.Resumed == nil || wire.LastSeq == nil || !safeCount(*wire.LastSeq) ||
 		options.Resume != nil && wire.SessionID != options.Resume.SessionID ||
-		family == "sdk2-offload-v1" && (wire.Contract != family || wire.Availability != "source-required") {
+		family == "sdk2-offload-v1" && (wire.Contract != family || wire.Availability != "source-required" && wire.Availability != "source-managed") {
 		return nil, invalidResponse("created session identity or family is invalid")
 	}
 	return &Session{client: c, created: Created{wire.SessionID, *wire.Resumed, *wire.LastSeq}}, nil
@@ -118,7 +118,7 @@ func (c *Client) discoverFamily(ctx context.Context) error {
 	}
 	seen, supported := map[string]bool{}, false
 	for _, entry := range body.Contracts {
-		if seen[entry.Contract] || !(entry.Contract == "sdk1" && entry.Availability == "legacy-complete" || entry.Contract == "sdk2-offload-v1" && entry.Availability == "source-required") {
+		if seen[entry.Contract] || !(entry.Contract == "sdk1" && entry.Availability == "legacy-complete" || entry.Contract == "sdk2-offload-v1" && (entry.Availability == "source-required" || entry.Availability == "source-managed")) {
 			return invalidResponse("session family discovery contains an invalid entry")
 		}
 		seen[entry.Contract] = true
@@ -198,13 +198,19 @@ func (c *Client) List(ctx context.Context, offset, limit int) (List, error) {
 }
 
 func (s *Session) Send(ctx context.Context, prompt string, opts WriteOptions) (Accepted, error) {
+	if opts.RequestID != "" && !requestIDRule.MatchString(opts.RequestID) {
+		return Accepted{}, invalidBody("invalid requestId")
+	}
 	if strings.TrimSpace(prompt) == "" {
 		return Accepted{}, invalidBody("prompt must not be blank")
 	}
-	return s.accepted(ctx, api.OpSessionMessageSend, nil, map[string]string{"prompt": prompt}, opts, true)
+	return s.accepted(ctx, api.OpSessionMessageSend, nil, messageBody("prompt", prompt, opts.RequestID), opts, true)
 }
 
 func (s *Session) SendBlocks(ctx context.Context, blocks []Block, opts WriteOptions) (Accepted, error) {
+	if opts.RequestID != "" && !requestIDRule.MatchString(opts.RequestID) {
+		return Accepted{}, invalidBody("invalid requestId")
+	}
 	if len(blocks) == 0 {
 		return Accepted{}, invalidBody("message blocks must not be empty")
 	}
@@ -217,7 +223,7 @@ func (s *Session) SendBlocks(ctx context.Context, blocks []Block, opts WriteOpti
 		}
 		return Accepted{}, invalidBody("unsupported message block")
 	}
-	return s.accepted(ctx, api.OpSessionMessageSend, nil, map[string]any{"blocks": blocks}, opts, true)
+	return s.accepted(ctx, api.OpSessionMessageSend, nil, messageBody("blocks", blocks, opts.RequestID), opts, true)
 }
 
 func (s *Session) Interrupt(ctx context.Context, opts WriteOptions) (Accepted, error) {
@@ -370,7 +376,7 @@ func readMeta(raw json.RawMessage, family string) (Meta, error) {
 	}
 	if json.Unmarshal(raw, &meta) != nil || json.Unmarshal(raw, &wire) != nil || meta.SessionID == "" || wire.LastSeq == nil || wire.Live == nil || !safeCount(*wire.LastSeq) ||
 		meta.Status != "idle" && meta.Status != "running" && meta.Status != "ended" ||
-		family == "sdk2-offload-v1" && (wire.Contract != family || wire.Availability != "source-required") {
+		family == "sdk2-offload-v1" && (wire.Contract != family || wire.Availability != "source-required" && wire.Availability != "source-managed") {
 		return Meta{}, invalidResponse("metadata is malformed")
 	}
 	meta.Raw = append(json.RawMessage(nil), raw...)

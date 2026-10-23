@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tansrai/tansr-go/api"
@@ -27,9 +28,15 @@ var (
 )
 
 // Client uses only manifest-generated routes. It never retries mutations with a new identity.
-type Client struct{ api *api.Client }
+type Client struct {
+	api           *api.Client
+	persistenceMu sync.Mutex
+	persistence   map[string]*SourcePersistence
+}
 
-func NewClient(client *api.Client) *Client { return &Client{api: client} }
+func NewClient(client *api.Client) *Client {
+	return &Client{api: client, persistence: make(map[string]*SourcePersistence)}
+}
 
 func (c *Client) call(ctx context.Context, operation, definition string, options api.CallOptions, status int, out any) error {
 	if c == nil || c.api == nil {
@@ -121,6 +128,9 @@ func (c *Client) Create(ctx context.Context, sessionID, sourceID, requestID stri
 	caps, err := c.Capabilities(ctx)
 	if err != nil {
 		return zero, err
+	}
+	if caps.Persistence != nil {
+		return zero, ErrSourceManaged
 	}
 	if !has(caps.Capabilities, "archive-transfer-v1") || !has(caps.ArchiveAckFormats, "split-receipts-v1") {
 		return zero, errors.New("archive: archive-transfer-v1 is unavailable")
@@ -218,6 +228,9 @@ func validateBinding(value Binding) error {
 	if err := validate("BindingView", value); err != nil {
 		return err
 	}
+	if value.Persistence != nil && value.Persistence.SourceID != value.SourceID {
+		return ErrIntegrity
+	}
 	if value.Limits.InflightReserveBytes > value.Limits.PendingBytes {
 		return ErrIntegrity
 	}
@@ -272,6 +285,9 @@ func (c *Client) Binding(ctx context.Context, id string) (Binding, error) {
 	if err == nil {
 		err = validateBinding(value)
 	}
+	if err == nil {
+		err = c.observePersistence(id, value.Persistence)
+	}
 	return value, err
 }
 func (c *Client) Status(ctx context.Context, id string) (Status, error) {
@@ -283,8 +299,11 @@ func (c *Client) Status(ctx context.Context, id string) (Status, error) {
 	if err != nil {
 		return value, err
 	}
-	if value.BindingID != id {
+	if value.BindingID != id || value.Persistence != nil && (value.Persistence.SourceID != value.SourceID || value.Persistence.SourceGeneration != value.SourceGeneration) {
 		return value, ErrIntegrity
+	}
+	if err = c.observePersistence(id, value.Persistence); err != nil {
+		return value, err
 	}
 	if value.PublishedThroughSequence != nil && seq(*value.PublishedThroughSequence) < 1 || value.ReleasableThroughSequence != nil && seq(*value.ReleasableThroughSequence) < 1 {
 		return value, ErrIntegrity
@@ -306,7 +325,7 @@ func validCoverage(c Coverage) bool {
 
 func IdentityFrom(b Binding, s Status) (Identity, error) {
 	value := Identity{b.Scope.ApplicationScopeID, b.Scope.EndUserID, b.BindingID, b.Target.SessionID, b.Target.Generations, b.SourceID, s.SourceGeneration}
-	if validateBinding(b) != nil || validate("ArchiveStatus", s) != nil || b.BindingID != s.BindingID || b.SourceID != s.SourceID || b.Target.Generations != s.Generations || b.Revision != s.Revision || b.State != s.State || b.State == "closed" {
+	if validateBinding(b) != nil || validate("ArchiveStatus", s) != nil || b.BindingID != s.BindingID || b.SourceID != s.SourceID || b.Target.Generations != s.Generations || b.Revision != s.Revision || b.State != s.State || b.State == "closed" || !samePersistence(b.Persistence, s.Persistence) || b.Persistence != nil && b.Persistence.SourceGeneration != s.SourceGeneration {
 		return Identity{}, ErrIntegrity
 	}
 	return value, nil

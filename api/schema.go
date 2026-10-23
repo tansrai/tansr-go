@@ -183,7 +183,7 @@ var (
 	traceIDSchemaPattern   = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
 	idempotencyKeyPattern  = regexp.MustCompile(`^[\x21-\x7e]{1,128}$`)
 	domainCodePattern      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	operationNamePattern   = regexp.MustCompile(`^[a-z]+(\.[a-z][a-z0-9]*)+$`)
+	operationNamePattern   = regexp.MustCompile(`^[a-z]+(\.[a-z][a-z0-9_]*)+$`)
 	apiPathPattern         = regexp.MustCompile(`^/api(/(:[A-Za-z]+|[A-Za-z0-9._~-]+))+$`)
 	apiEntryPattern        = regexp.MustCompile(`^/api(/(:[A-Za-z]+|[A-Za-z0-9._~-]+|\*\*))*$`)
 	legacyPathPattern      = regexp.MustCompile(`^/v[123](/(:[A-Za-z]+|[A-Za-z0-9._~-]+|\*\*))+$`)

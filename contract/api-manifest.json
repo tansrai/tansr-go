@@ -1,8 +1,8 @@
 {
   "format": "tansr-api-manifest-v1",
   "contract": "unified-v1",
-  "revision": 7,
-  "schemaHash": "b60e77ffcbf08d985a993dbdbd4cf610f12f7c7e70f090aee5ff8d523f70bb57",
+  "revision": 17,
+  "schemaHash": "b792dc53f45ca2b8fdc8438bd5b50d6d6c8a3eb08ac29920215d75a470349faf",
   "families": [
     {
       "id": "agent-session-v1",
@@ -12,7 +12,7 @@
       "status": "frozen",
       "rfc": "doc/98-Agent会话服务v2契约冻结件.md",
       "source": "packages/server/src/v2/contract.ts",
-      "sha256": "6e1876edc476322e2fc3613958f5b44700bb80ea23550fa794f5729220674f3e",
+      "sha256": "d143be74431db52ec8b2874f5d017ba043b1c365ad8eb76cd03fd49e317bb22a",
       "golden": {
         "packages/cli/test/fixtures/agent-v2-frames/frames.json": "5d3a40dcfea3709a06b78dd9a0066f68194efff96ebc4defc79476a589161d50",
         "packages/protocol/schemas/kernel-event.schema.json": "54b587ade59bf20a3d55647a160c3d857dbf2fa73730d82cf7811b7ee4097501"
@@ -69,8 +69,8 @@
         }
       ],
       "requestIdPath": null,
-      "sessionManifestRevision": 9,
-      "sessionManifestSha256": "6e1876edc476322e2fc3613958f5b44700bb80ea23550fa794f5729220674f3e"
+      "sessionManifestRevision": 11,
+      "sessionManifestSha256": "d143be74431db52ec8b2874f5d017ba043b1c365ad8eb76cd03fd49e317bb22a"
     },
     {
       "id": "sdk2-ext-v1",
@@ -81,9 +81,9 @@
       "status": "final",
       "rfc": "doc/rfc/RFC-SDK2-1-兼容SDK1的扩展协议.md",
       "source": "doc/rfc/sdk2-ext-v1.schema.json",
-      "sha256": "969273844ca9196f19dd71b292b65a49307d63be0d20a0caf557e105ba6d8605",
+      "sha256": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
       "golden": {
-        "scripts/sdk2/fixtures/sdk2-wire-v1.json": "d911959c91182834af396e09c523a14f223a65871588561dff5faf1d0ba27930"
+        "scripts/sdk2/fixtures/sdk2-wire-v1.json": "1aedfebff05a0343617e99cde48469eefd13c9a20417cc3e84e0754fd138e7dc"
       },
       "generated": [
         "packages/api-client/src/sdk2/wire-schema-generated.ts",
@@ -136,7 +136,15 @@
           "client": "csharp",
           "repo": "tansr-net",
           "file": "src/Tansr.Sdk/Protocol/WireContract.cs",
-          "lock": "969273844ca9196f19dd71b292b65a49307d63be0d20a0caf557e105ba6d8605",
+          "lock": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "go",
+          "repo": "tansr-go",
+          "file": "contract/sdk2-ext-v1.schema.json",
+          "lock": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
           "observed": "2026-10-01",
           "drift": false
         },
@@ -144,7 +152,7 @@
           "client": "android",
           "repo": "tansr-android",
           "file": "core/src/main/kotlin/com/tansr/sdk/sdk2/Sdk2NamedSchema.kt",
-          "lock": "969273844ca9196f19dd71b292b65a49307d63be0d20a0caf557e105ba6d8605",
+          "lock": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
           "observed": "2026-10-01",
           "drift": false
         },
@@ -152,7 +160,7 @@
           "client": "ios",
           "repo": "tansr-ios",
           "file": "Sources/TansrCore/SDK2/Sdk2SchemaResource.swift",
-          "lock": "969273844ca9196f19dd71b292b65a49307d63be0d20a0caf557e105ba6d8605",
+          "lock": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
           "observed": "2026-10-01",
           "drift": false
         },
@@ -160,7 +168,7 @@
           "client": "harmony",
           "repo": "tansr-harmony",
           "file": "tansr/src/main/ets/core/sdk2/client/SchemaGenerated.ets",
-          "lock": "969273844ca9196f19dd71b292b65a49307d63be0d20a0caf557e105ba6d8605",
+          "lock": "54d2d6ec81b6fd2e01344674692d89f52ea245ff8c93de9cc5edd1401124eb4f",
           "observed": "2026-10-01",
           "drift": false
         }
@@ -472,6 +480,83 @@
       ]
     },
     {
+      "id": "persistence-custody-handoff-v1",
+      "domains": [
+        "terminal"
+      ],
+      "status": "additive",
+      "rfc": "doc/rfc/PST-SERVE-01-记忆域托管交接-2026-10-21.md",
+      "source": "doc/rfc/persistence-custody-handoff-v1.schema.json",
+      "sha256": "8c84ad5ba1461207dd0d9f11871989aeb8b971f6557c39ca4e06a690e191f9d9",
+      "golden": {
+        "doc/rfc/persistence-custody-handoff-v1.golden.json": "c9319eb931970c140d88aef6e453c89bf94d65d13f8a1d0d5b51ac731d4333ac"
+      },
+      "generated": [
+        "packages/protocol/src/persistence-custody.generated.ts",
+        "packages/api-client/src/terminal/custody-wire-schema-generated.ts",
+        "packages/api-client/src/terminal/custody-wire-types-generated.ts",
+        "packages/server/src/v2/persistence-custody-contract.generated.ts"
+      ],
+      "legacyEntries": [
+        "/v3/terminal/persistence/custody/capabilities",
+        "/v3/terminal/persistence/custody/operations/:id"
+      ],
+      "apiEntries": [
+        "/api/terminal/persistence/custody/capabilities",
+        "/api/terminal/persistence/custody/operations/:id"
+      ],
+      "clients": [
+        {
+          "client": "node",
+          "repo": "tansr-cli",
+          "lock": "generated",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "csharp",
+          "repo": "tansr-net",
+          "file": "contract/persistence-custody-handoff-v1.schema.json",
+          "lock": "hand-written",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "go",
+          "repo": "tansr-go",
+          "file": "contract/persistence-custody-handoff-v1.schema.json",
+          "lock": "8c84ad5ba1461207dd0d9f11871989aeb8b971f6557c39ca4e06a690e191f9d9",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "android",
+          "repo": "tansr-android",
+          "file": "core/src/main/resources/terminal/persistence-custody-handoff-v1.schema.json",
+          "lock": "8c84ad5ba1461207dd0d9f11871989aeb8b971f6557c39ca4e06a690e191f9d9",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "ios",
+          "repo": "tansr-ios",
+          "file": "Tests/TansrCoreTests/Fixtures/PersistenceCustody/persistence-custody-handoff-v1.schema.json",
+          "lock": "8c84ad5ba1461207dd0d9f11871989aeb8b971f6557c39ca4e06a690e191f9d9",
+          "observed": "2026-10-01",
+          "drift": false
+        },
+        {
+          "client": "harmony",
+          "repo": "tansr-harmony",
+          "file": "contract/terminal/persistence-custody-handoff-v1.schema.json",
+          "lock": "8c84ad5ba1461207dd0d9f11871989aeb8b971f6557c39ca4e06a690e191f9d9",
+          "observed": "2026-10-01",
+          "drift": false
+        }
+      ],
+      "requestIdPath": null
+    },
+    {
       "id": "terminal-observation-v1",
       "domains": [
         "terminal-observation"
@@ -651,9 +736,9 @@
       "status": "candidate",
       "rfc": "doc/rfc/RFC-UAPI-1-统一信封与canonical单模块.md",
       "source": "doc/rfc/unified-v1.schema.json",
-      "sha256": "fd07962916f7662ecc69c3f8c8d2b79aa5b99f542cbfd310a50f56777e51f117",
+      "sha256": "fa72c7f383489f8261aae52abce71818e5a6e1989a43339f25e6f7fba971fdf6",
       "golden": {
-        "doc/rfc/unified-v1.golden.json": "42531a3937563d8c0d719c5970629b25bbabf3a8ea8436550db5bfddf9d206fd"
+        "doc/rfc/unified-v1.golden.json": "f5ad381edd569847b03d83f3ff6e8b5a8e5cdf99d2f0777b658b8fa02f8b162d"
       },
       "generated": [],
       "legacyEntries": [],
@@ -1091,6 +1176,24 @@
       "expectedRevision": null
     },
     {
+      "name": "session.checkpoint.restore_with_summary",
+      "domain": "session",
+      "family": "agent-session-v1",
+      "method": "POST",
+      "apiPath": "/api/sessions/:id/checkpoints/:targetId/restore-with-summary",
+      "aliases": [],
+      "legacyPath": "/v2/sessions/:id/checkpoints/:targetId/restore-with-summary",
+      "legacyOffloadPath": "/v3/sdk2/sessions/:id/checkpoints/:targetId/restore-with-summary",
+      "kind": "write",
+      "sse": false,
+      "request": "agent-session-v1#BranchSummaryBodySchema",
+      "response": "agent-session-v1#BranchSummaryResultSchema",
+      "query": [],
+      "notes": "显式同源祖先导航；生成成功并耐久提交后返回 installed。旧 restore 不变。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
       "name": "session.checkpoint.export",
       "domain": "session",
       "family": "agent-session-v1",
@@ -1234,6 +1337,63 @@
         "turnId"
       ],
       "notes": ":targetId = inputId;响应 = kernel SessionInputReceipt,contract.ts 无命名 schema",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "session.persistence.read",
+      "domain": "session",
+      "family": "agent-session-v1",
+      "method": "GET",
+      "apiPath": "/api/sessions/:id/persistence",
+      "aliases": [],
+      "legacyPath": "/v2/sessions/:id/persistence",
+      "legacyOffloadPath": "/v3/sdk2/sessions/:id/persistence",
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "agent-session-v1#SessionPersistenceViewSchema",
+      "query": [],
+      "notes": "可信装配的只读模式/来源/覆盖；旧 archive 字面不改义；未装配不得隐式降级。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "session.input.query",
+      "domain": "session",
+      "family": "agent-session-v1",
+      "method": "GET",
+      "apiPath": "/api/sessions/:id/input-requests/:targetId",
+      "aliases": [],
+      "legacyPath": "/v2/sessions/:id/input-requests/:targetId",
+      "legacyOffloadPath": "/v3/sdk2/sessions/:id/input-requests/:targetId",
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "agent-session-v1#InputAcceptanceQuerySchema",
+      "query": [],
+      "notes": ":targetId = messages 原 requestId；receipt:null 表示原受理事实未找到，不证明副作用未发生。不同于 INJ inputs/:targetId。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "session.input.list",
+      "domain": "session",
+      "family": "agent-session-v1",
+      "method": "GET",
+      "apiPath": "/api/sessions/:id/input-requests",
+      "aliases": [],
+      "legacyPath": "/v2/sessions/:id/input-requests",
+      "legacyOffloadPath": "/v3/sdk2/sessions/:id/input-requests",
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "agent-session-v1#InputAcceptanceListSchema",
+      "query": [
+        "cursor",
+        "limit"
+      ],
+      "notes": "同主体/会话，按 requestId 升序；cursor 原 requestId，limit 1..100 默认50；列表不是最新请求猜测器。",
       "etagPath": null,
       "expectedRevision": null
     },
@@ -1423,6 +1583,87 @@
       "response": "sdk2-ext-v1#ExecutionStatus",
       "query": [],
       "notes": null,
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "execution.journal.claim",
+      "domain": "execution",
+      "family": "sdk2-ext-v1",
+      "method": "POST",
+      "apiPath": "/api/executors/:id/journal/claim",
+      "aliases": [],
+      "legacyPath": "/v2/executors/:id/journal/claim",
+      "legacyOffloadPath": "/v3/sdk2/executors/:id/journal/claim",
+      "kind": "write",
+      "sse": false,
+      "request": "sdk2-ext-v1#ExecutionJournalClaimRequest",
+      "response": "sdk2-ext-v1#ExecutionJournalClaimResponse",
+      "query": [],
+      "notes": "仅显式云模式；首次耐久认领返回 granted 和 claimToken。原 attempt 重放为 pending，其他持有人为 busy，查询或失回不得重新授予执行。禁止通用 Idempotency-Key（400 idempotency_key_not_applicable）。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "execution.journal.complete",
+      "domain": "execution",
+      "family": "sdk2-ext-v1",
+      "method": "POST",
+      "apiPath": "/api/executors/:id/journal/complete",
+      "aliases": [],
+      "legacyPath": "/v2/executors/:id/journal/complete",
+      "legacyOffloadPath": "/v3/sdk2/executors/:id/journal/complete",
+      "kind": "write",
+      "sse": false,
+      "request": "sdk2-ext-v1#ExecutionJournalCompleteRequest",
+      "response": "sdk2-ext-v1#ExecutionJournalReadResponse",
+      "query": [],
+      "notes": "核验原派工、scope、connection、attempt 和首次 claimToken；同回执幂等，异体 conflict；非持有人不得提交 unknown。成功 record 非 null。禁止通用 Idempotency-Key（400 idempotency_key_not_applicable）。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "execution.journal.read",
+      "domain": "execution",
+      "family": "sdk2-ext-v1",
+      "method": "GET",
+      "apiPath": "/api/executors/:id/journal/:targetId",
+      "aliases": [],
+      "legacyPath": "/v2/executors/:id/journal/:targetId",
+      "legacyOffloadPath": "/v3/sdk2/executors/:id/journal/:targetId",
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "sdk2-ext-v1#ExecutionJournalReadResponse",
+      "query": [
+        "protocol",
+        "connectionId"
+      ],
+      "notes": ":targetId = operationId；record:null 表示没有认领事实，不是执行许可。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "execution.journal.list",
+      "domain": "execution",
+      "family": "sdk2-ext-v1",
+      "method": "GET",
+      "apiPath": "/api/executors/:id/journal",
+      "aliases": [],
+      "legacyPath": "/v2/executors/:id/journal",
+      "legacyOffloadPath": "/v3/sdk2/executors/:id/journal",
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "sdk2-ext-v1#ExecutionJournalListResponse",
+      "query": [
+        "protocol",
+        "connectionId",
+        "sessionId",
+        "cursor",
+        "limit"
+      ],
+      "notes": "同主体/executor，sessionId 可选；按 operationId 升序，cursor 为原 operationId；limit 1..100，默认50，不承诺并发快照。",
       "etagPath": null,
       "expectedRevision": null
     },
@@ -2043,6 +2284,52 @@
         "contract"
       ],
       "notes": null,
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "terminal.custody.capabilities",
+      "domain": "terminal",
+      "family": "persistence-custody-handoff-v1",
+      "method": "GET",
+      "apiPath": "/api/terminal/persistence/custody/capabilities",
+      "aliases": [],
+      "legacyPath": "/v3/terminal/persistence/custody/capabilities",
+      "legacyOffloadPath": null,
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "persistence-custody-handoff-v1#CapabilitiesResponse",
+      "query": [
+        "contract"
+      ],
+      "notes": "显式可选托管交接；installed 由共同控制权威及完整目录适配器实际装配决定。",
+      "etagPath": null,
+      "expectedRevision": null
+    },
+    {
+      "name": "terminal.custody.query",
+      "domain": "terminal",
+      "family": "persistence-custody-handoff-v1",
+      "method": "GET",
+      "apiPath": "/api/terminal/persistence/custody/operations/:id",
+      "aliases": [],
+      "legacyPath": "/v3/terminal/persistence/custody/operations/:id",
+      "legacyOffloadPath": null,
+      "kind": "read",
+      "sse": false,
+      "request": null,
+      "response": "persistence-custody-handoff-v1#QueryResponse",
+      "query": [
+        "contract",
+        "applicationScopeId",
+        "endUserId",
+        "sourceId",
+        "sourceGeneration",
+        "domainKey",
+        "intentSha256"
+      ],
+      "notes": ":id = 原operationId；只读原键查询，不接受终端自报成为writer或释放unknown。",
       "etagPath": null,
       "expectedRevision": null
     },

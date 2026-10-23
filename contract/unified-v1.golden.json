@@ -1,6 +1,6 @@
 {
   "description": "unified-v1 结构金样(UAPI-01 阶段三):Manifest / Capabilities / CapabilityClosure / FacadeError / UnifiedError / EventEnvelope / RequestHeaders / ResponseHeaders 的正向与负向向量;只断言结构与标量保真,不代表鉴权或跨请求语义。依据 RFC-UAPI-1 v1.0-rc 会签稿与方案 §0 D7(统一码 19、tansr-event-envelope 协商头、票据段 ticketId)、§0 D18(事件包络 wire 定形 7 键 { contract, eventId, domain, type, cursorSet, terminalStatus, raw };EventEnvelope 正例与服务端 event-envelope.ts 真实产物同形)。CapabilityClosure 正例 = closure.ts computeClosure 真实产物(测试重算比对);Manifest 正例按路径引用仓内 api-manifest.json(valueFile)。负向向量两形:内联 value,或 base(某正例 name)+ patch(RFC 6902 子集 add / replace / remove,按序施于 base 深拷贝)——后者让\"错在哪一位\"一目了然并控制体积。",
-  "schemaSha256": "fd07962916f7662ecc69c3f8c8d2b79aa5b99f542cbfd310a50f56777e51f117",
+  "schemaSha256": "fa72c7f383489f8261aae52abce71818e5a6e1989a43339f25e6f7fba971fdf6",
   "closureSources": {
     "full": {
       "installed": {
@@ -39,7 +39,8 @@
             "available": true,
             "unavailableReason": null
           }
-        ]
+        ],
+        "cloudJournal": true
       },
       "archive": {
         "epochId": "epoch-1",
@@ -73,6 +74,10 @@
         "features": [
           "private-logical-cache-v1"
         ]
+      },
+      "persistence": {
+        "available": true,
+        "inputReceipts": true
       }
     },
     "partial": {
@@ -110,6 +115,85 @@
       "input": null,
       "audio": null,
       "cache": null
+    },
+    "sdk1Branch": {
+      "installed": {
+        "session": "sdk1",
+        "execution": true,
+        "archive": true,
+        "archive-sync": true,
+        "cache": true,
+        "terminal": true,
+        "terminal-observation": true,
+        "terminal-profile": true
+      },
+      "authorizationRevision": "7",
+      "session": {
+        "family": "sdk1",
+        "state": "idle"
+      },
+      "execution": {
+        "boundaryRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effectiveTools": [
+          {
+            "name": "Shell",
+            "executionKind": "bound-device",
+            "available": true,
+            "unavailableReason": null
+          },
+          {
+            "name": "Read",
+            "executionKind": "bound-device",
+            "available": true,
+            "unavailableReason": null
+          },
+          {
+            "name": "WebSearch",
+            "executionKind": "managed-service",
+            "available": true,
+            "unavailableReason": null
+          }
+        ],
+        "cloudJournal": true
+      },
+      "archive": {
+        "epochId": "epoch-1",
+        "capabilities": [
+          "archive-transfer-v1",
+          "context-materials-v1"
+        ]
+      },
+      "terminal": {
+        "schemaRevision": "2026-09-26.candidate-7",
+        "features": {
+          "execution-stream-v1": "installed",
+          "execution-background-v1": "installed",
+          "memory-lifecycle-v1": "installed",
+          "session-configuration-v1": "installed"
+        }
+      },
+      "input": {
+        "version": 1,
+        "accepts": [
+          "text",
+          "textBlocks"
+        ]
+      },
+      "audio": {
+        "speechToText": true,
+        "textToSpeech": true
+      },
+      "cache": {
+        "protocol": "sdk2-cache-v1",
+        "features": [
+          "private-logical-cache-v1"
+        ]
+      },
+      "persistence": {
+        "available": true,
+        "inputReceipts": true
+      },
+      "branchSummary": true
     }
   },
   "vectors": [
@@ -583,7 +667,7 @@
       "expect": "valid",
       "value": {
         "contract": "unified-v1",
-        "closureId": "fc9a7b7a38e67ef3bcf0165be04290102628d1fa344b9e4775edad987b609399",
+        "closureId": "fadf1999cd6cda3e58efa77ff631ee7b574398c19bcec31bf1031aaad6e64ebb",
         "authorizationRevision": "7",
         "domains": {
           "session": {
@@ -636,6 +720,7 @@
           "session.checkpoint.create": "enabled",
           "session.checkpoint.import": "enabled",
           "session.checkpoint.restore": "enabled",
+          "session.checkpoint.restore_with_summary": "unavailable",
           "session.checkpoint.export": "enabled",
           "session.checkpoint.delete": "enabled",
           "session.cwd.set": "enabled",
@@ -644,6 +729,9 @@
           "session.input.capabilities": "enabled",
           "session.input.submit": "enabled",
           "session.input.status": "enabled",
+          "session.persistence.read": "enabled",
+          "session.input.query": "enabled",
+          "session.input.list": "enabled",
           "approval.credential.submit": "enabled",
           "execution.initialize": "enabled",
           "execution.capabilities": "enabled",
@@ -654,6 +742,10 @@
           "executor.heartbeat": "enabled",
           "executor.operations.poll": "enabled",
           "executor.receipt.submit": "enabled",
+          "execution.journal.claim": "enabled",
+          "execution.journal.complete": "enabled",
+          "execution.journal.read": "enabled",
+          "execution.journal.list": "enabled",
           "archive.capabilities": "enabled",
           "archive.binding.target": "enabled",
           "archive.binding.create": "enabled",
@@ -682,6 +774,8 @@
           "cache.diagnostics": "enabled",
           "cache.core.diagnostics": "enabled",
           "terminal.capabilities": "enabled",
+          "terminal.custody.capabilities": "unavailable",
+          "terminal.custody.query": "unavailable",
           "terminal.binding.create": "enabled",
           "terminal.executor.events.observe": "enabled",
           "terminal.output.batch": "enabled",
@@ -699,7 +793,7 @@
           "terminal.profile.usage": "enabled"
         }
       },
-      "note": "closure.ts computeClosure(全装配 / idle / 全能力源)= 77 条全 enabled"
+      "note": "原能力源完整保留；新托管交接未装配，准确unavailable。"
     },
     {
       "name": "closure-partial-mixed",
@@ -707,7 +801,7 @@
       "expect": "valid",
       "value": {
         "contract": "unified-v1",
-        "closureId": "97f747b6cee3ddccee68b6c74592e239ea86c4637c857e92c0064a5383cffd9d",
+        "closureId": "b87185045f1193f721792675f4278d73734a3b89316ab9d1888bab875103bb4e",
         "authorizationRevision": null,
         "domains": {
           "session": {
@@ -760,6 +854,7 @@
           "session.checkpoint.create": "disabled",
           "session.checkpoint.import": "disabled",
           "session.checkpoint.restore": "disabled",
+          "session.checkpoint.restore_with_summary": "unavailable",
           "session.checkpoint.export": "enabled",
           "session.checkpoint.delete": "disabled",
           "session.cwd.set": "disabled",
@@ -768,6 +863,9 @@
           "session.input.capabilities": "unavailable",
           "session.input.submit": "unavailable",
           "session.input.status": "unavailable",
+          "session.persistence.read": "unavailable",
+          "session.input.query": "unavailable",
+          "session.input.list": "unavailable",
           "approval.credential.submit": "enabled",
           "execution.initialize": "unavailable",
           "execution.capabilities": "unavailable",
@@ -778,6 +876,10 @@
           "executor.heartbeat": "unavailable",
           "executor.operations.poll": "unavailable",
           "executor.receipt.submit": "unavailable",
+          "execution.journal.claim": "unavailable",
+          "execution.journal.complete": "unavailable",
+          "execution.journal.read": "unavailable",
+          "execution.journal.list": "unavailable",
           "archive.capabilities": "enabled",
           "archive.binding.target": "enabled",
           "archive.binding.create": "disabled",
@@ -806,6 +908,8 @@
           "cache.diagnostics": "unavailable",
           "cache.core.diagnostics": "unavailable",
           "terminal.capabilities": "enabled",
+          "terminal.custody.capabilities": "unavailable",
+          "terminal.custody.query": "unavailable",
           "terminal.binding.create": "disabled",
           "terminal.executor.events.observe": "enabled",
           "terminal.output.batch": "disabled",
@@ -823,7 +927,7 @@
           "terminal.profile.usage": "unavailable"
         }
       },
-      "note": "closure.ts computeClosure(sdk1 已结束会话、无执行宿主、档案无 epoch、终端 feature 三态混合、无 INJ / 音频 / 缓存)"
+      "note": "原能力源完整保留；新托管交接未装配，准确unavailable。"
     },
     {
       "name": "facade-error-unauthorized",
@@ -3290,6 +3394,140 @@
         }
       ],
       "note": "retry-after ≥ 1 秒"
+    },
+    {
+      "name": "closure-sdk1-branch-summary-enabled",
+      "definition": "CapabilityClosure",
+      "expect": "valid",
+      "value": {
+        "contract": "unified-v1",
+        "closureId": "beafec8c1873ec74d8d31f900421144966a089265feb7004304ce34d5f567356",
+        "authorizationRevision": "7",
+        "domains": {
+          "session": {
+            "installed": true,
+            "revision": "sdk1"
+          },
+          "execution": {
+            "installed": true,
+            "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "archive": {
+            "installed": true,
+            "revision": "epoch-1"
+          },
+          "archive-sync": {
+            "installed": true,
+            "revision": null
+          },
+          "cache": {
+            "installed": true,
+            "revision": "sdk2-cache-v1"
+          },
+          "terminal": {
+            "installed": true,
+            "revision": "2026-09-26.candidate-7"
+          },
+          "terminal-observation": {
+            "installed": true,
+            "revision": null
+          },
+          "terminal-profile": {
+            "installed": true,
+            "revision": null
+          }
+        },
+        "operations": {
+          "session.create": "enabled",
+          "session.list": "enabled",
+          "session.get": "enabled",
+          "session.close": "enabled",
+          "session.message.send": "enabled",
+          "session.events.observe": "enabled",
+          "session.interrupt": "enabled",
+          "session.history.read": "enabled",
+          "session.tool.result": "enabled",
+          "session.permission.decide": "enabled",
+          "session.question.answer": "enabled",
+          "session.compact": "enabled",
+          "session.checkpoint.list": "enabled",
+          "session.checkpoint.create": "enabled",
+          "session.checkpoint.import": "enabled",
+          "session.checkpoint.restore": "enabled",
+          "session.checkpoint.restore_with_summary": "enabled",
+          "session.checkpoint.export": "enabled",
+          "session.checkpoint.delete": "enabled",
+          "session.cwd.set": "enabled",
+          "session.audio.transcribe": "enabled",
+          "session.audio.speak": "enabled",
+          "session.input.capabilities": "enabled",
+          "session.input.submit": "enabled",
+          "session.input.status": "enabled",
+          "session.persistence.read": "enabled",
+          "session.input.query": "enabled",
+          "session.input.list": "enabled",
+          "approval.credential.submit": "enabled",
+          "execution.initialize": "enabled",
+          "execution.capabilities": "enabled",
+          "execution.boundary": "enabled",
+          "execution.binding.create": "enabled",
+          "execution.status": "enabled",
+          "executor.register": "enabled",
+          "executor.heartbeat": "enabled",
+          "executor.operations.poll": "enabled",
+          "executor.receipt.submit": "enabled",
+          "execution.journal.claim": "enabled",
+          "execution.journal.complete": "enabled",
+          "execution.journal.read": "enabled",
+          "execution.journal.list": "enabled",
+          "archive.capabilities": "enabled",
+          "archive.binding.target": "enabled",
+          "archive.binding.create": "enabled",
+          "archive.binding.get": "enabled",
+          "archive.binding.close": "enabled",
+          "archive.status": "enabled",
+          "archive.events.observe": "enabled",
+          "archive.records.read": "enabled",
+          "archive.artifact.read": "enabled",
+          "archive.ack.commit": "enabled",
+          "archive.ack.rebase": "enabled",
+          "archive.operation.query": "enabled",
+          "archive.sync": "enabled",
+          "material.response.submit": "enabled",
+          "material.status": "enabled",
+          "material.upload.status": "enabled",
+          "material.upload.chunk": "enabled",
+          "cache.capabilities": "enabled",
+          "cache.binding.open": "enabled",
+          "cache.binding.get": "enabled",
+          "cache.binding.renew": "enabled",
+          "cache.binding.rebind": "enabled",
+          "cache.binding.rotate": "enabled",
+          "cache.binding.close": "enabled",
+          "cache.operation.query": "enabled",
+          "cache.diagnostics": "enabled",
+          "cache.core.diagnostics": "enabled",
+          "terminal.capabilities": "enabled",
+          "terminal.custody.capabilities": "unavailable",
+          "terminal.custody.query": "unavailable",
+          "terminal.binding.create": "enabled",
+          "terminal.executor.events.observe": "enabled",
+          "terminal.output.batch": "enabled",
+          "terminal.execution.state": "enabled",
+          "terminal.output.observe": "enabled",
+          "terminal.output.status": "enabled",
+          "terminal.configuration.read": "enabled",
+          "terminal.configuration.commit": "enabled",
+          "terminal.memory.read": "enabled",
+          "terminal.memory.command": "enabled",
+          "terminal.memory.receipt": "enabled",
+          "terminal.observation.resources": "enabled",
+          "terminal.observation.correlations": "enabled",
+          "terminal.profile.catalog": "enabled",
+          "terminal.profile.usage": "enabled"
+        }
+      },
+      "note": "原能力源完整保留；新托管交接未装配，准确unavailable。"
     }
   ]
 }

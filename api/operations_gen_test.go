@@ -43,11 +43,11 @@ func TestOperationsGenerated(t *testing.T) {
 	if hex.EncodeToString(sum[:]) != ManifestSourceSHA256 {
 		t.Fatalf("ManifestSourceSHA256 %s differs from manifest file %s", ManifestSourceSHA256, hex.EncodeToString(sum[:]))
 	}
-	if len(operations) != 81 {
-		t.Fatalf("expected 81 operations, got %d", len(operations))
+	if len(operations) != 91 {
+		t.Fatalf("expected 91 operations, got %d", len(operations))
 	}
-	if len(ClosureOperationNames()) != 77 {
-		t.Fatalf("expected 77 closure operations, got %d", len(ClosureOperationNames()))
+	if len(ClosureOperationNames()) != 87 {
+		t.Fatalf("expected 87 closure operations, got %d", len(ClosureOperationNames()))
 	}
 	// revision 7 three-header facts are carried verbatim (U7-HDR §3 inventory): 15 versioned operations
 	// (archive 6 / cache 6 / terminal 3 carry an ETag), 9 write operations accept If-Match (archive 3 /
@@ -67,8 +67,8 @@ func TestOperationsGenerated(t *testing.T) {
 	if versioned != 15 || ifMatch != 9 {
 		t.Fatalf("three-header facts: %d versioned / %d if-match operations", versioned, ifMatch)
 	}
-	if len(FamilyRequestIDPaths) != 11 {
-		t.Fatalf("expected 11 registered families, got %d", len(FamilyRequestIDPaths))
+	if len(FamilyRequestIDPaths) != 12 {
+		t.Fatalf("expected 12 registered families, got %d", len(FamilyRequestIDPaths))
 	}
 	approval, ok := Lookup(OpApprovalCredentialSubmit)
 	if !ok || approval.Method != "POST" || approval.Path != "/api/approvals/:id/credential" || approval.Kind != "write" || approval.Family != "agent-session-v1" {

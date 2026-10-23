@@ -1,8 +1,8 @@
 {
   "format": "tansr-api-error-map-v1",
   "contract": "unified-v1",
-  "revision": 3,
-  "factsHash": "f96d7f559561e7565adfbca24685d21d8aa1e9fe3776ce09f014e9aa8bbbf0cc",
+  "revision": 4,
+  "factsHash": "9a3ed58c190a11830288ae0549d62ad66145387171dc923ea5fc2cd00e9e9c46",
   "unifiedCodes": {
     "invalid_request": {
       "status": 400,
@@ -101,6 +101,10 @@
         "draining",
         "forbidden",
         "fork_source_not_found",
+        "input_capacity",
+        "input_conflict",
+        "input_unavailable",
+        "input_unknown",
         "internal_error",
         "invalid_json",
         "method_not_allowed",
@@ -142,6 +146,10 @@
         "draining": "capacity_exceeded",
         "forbidden": "forbidden",
         "fork_source_not_found": "not_found",
+        "input_capacity": "capacity_exceeded",
+        "input_conflict": "conflict",
+        "input_unavailable": "capability_unavailable",
+        "input_unknown": "result_unknown",
         "internal_error": "internal_error",
         "invalid_json": "invalid_request",
         "method_not_allowed": "method_not_allowed",

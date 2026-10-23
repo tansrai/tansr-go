@@ -329,7 +329,7 @@ func replayVector(t *testing.T, v *goldenVector, value any, server *httptest.Ser
 	case DefCapabilityClosure:
 		res, err := newClient(false).SessionCapabilities(ctx, "s-1")
 		if valid {
-			if err != nil || res.ClosureID != body["closureId"].(string) || len(res.Closure.Operations) != 77 {
+			if err != nil || res.ClosureID != body["closureId"].(string) || len(res.Closure.Operations) != 87 {
 				t.Fatalf("closure: %v", err)
 			}
 			return outcomeAccepted

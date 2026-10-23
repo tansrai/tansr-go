@@ -45,6 +45,11 @@ type Limits struct {
 func DefaultLimits() Limits { return Limits{8, 16 << 20, 8192, 4096, 16384, 32 << 20} }
 
 type Options struct {
+	// Custody and Authority are supplied only by the trusted host. All domain writers
+	// must share that authority; imported data never grants the writer role.
+	Custody           *Custody
+	CustodyAuthority  CustodyAuthority
+	MigrationBudget   MigrationBudget
 	Path, Mode        string
 	Key               []byte
 	Identity          Identity

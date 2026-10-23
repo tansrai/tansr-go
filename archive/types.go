@@ -52,12 +52,13 @@ type Limits struct {
 	MaterialChunkBytes         int `json:"materialChunkBytes"`
 }
 type Capabilities struct {
-	Protocol          string   `json:"protocol"`
-	Availability      string   `json:"availability"`
-	Capabilities      []string `json:"capabilities"`
-	Limits            Limits   `json:"limits"`
-	OperationEpoch    Epoch    `json:"operationEpoch"`
-	ArchiveAckFormats []string `json:"archiveAckFormats"`
+	Persistence       *SourcePersistence `json:"persistence,omitempty"`
+	Protocol          string             `json:"protocol"`
+	Availability      string             `json:"availability"`
+	Capabilities      []string           `json:"capabilities"`
+	Limits            Limits             `json:"limits"`
+	OperationEpoch    Epoch              `json:"operationEpoch"`
+	ArchiveAckFormats []string           `json:"archiveAckFormats"`
 }
 type BindingTarget struct {
 	Protocol       string  `json:"protocol"`
@@ -67,6 +68,7 @@ type BindingTarget struct {
 	OperationEpoch *Epoch  `json:"operationEpoch"`
 }
 type Binding struct {
+	Persistence          *SourcePersistence   `json:"persistence,omitempty"`
 	Protocol             string               `json:"protocol"`
 	BindingID            string               `json:"bindingId"`
 	Scope                Scope                `json:"scope"`
@@ -161,19 +163,20 @@ type ArtifactChunk struct {
 	Base64      string      `json:"base64"`
 }
 type Status struct {
-	Protocol                  string      `json:"protocol"`
-	BindingID                 string      `json:"bindingId"`
-	Revision                  string      `json:"revision"`
-	Generations               Generations `json:"generations"`
-	SourceID                  string      `json:"sourceId"`
-	SourceGeneration          string      `json:"sourceGeneration"`
-	PublishedThroughSequence  *string     `json:"publishedThroughSequence"`
-	AcknowledgedCoverage      *Coverage   `json:"acknowledgedCoverage"`
-	ReleasableThroughSequence *string     `json:"releasableThroughSequence"`
-	PendingBytes              int         `json:"pendingBytes"`
-	PendingRecords            int         `json:"pendingRecords"`
-	SessionPersistence        string      `json:"sessionPersistence"`
-	State                     string      `json:"state"`
+	Persistence               *SourcePersistence `json:"persistence,omitempty"`
+	Protocol                  string             `json:"protocol"`
+	BindingID                 string             `json:"bindingId"`
+	Revision                  string             `json:"revision"`
+	Generations               Generations        `json:"generations"`
+	SourceID                  string             `json:"sourceId"`
+	SourceGeneration          string             `json:"sourceGeneration"`
+	PublishedThroughSequence  *string            `json:"publishedThroughSequence"`
+	AcknowledgedCoverage      *Coverage          `json:"acknowledgedCoverage"`
+	ReleasableThroughSequence *string            `json:"releasableThroughSequence"`
+	PendingBytes              int                `json:"pendingBytes"`
+	PendingRecords            int                `json:"pendingRecords"`
+	SessionPersistence        string             `json:"sessionPersistence"`
+	State                     string             `json:"state"`
 }
 type ArtifactReceipt struct {
 	ArtifactID string `json:"artifactId"`

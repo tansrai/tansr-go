@@ -14,7 +14,7 @@ func TestRun(t *testing.T) {
 		code int
 		want string
 	}{
-		{"success", []string{"-contract", filepath.Join("..", "..", "..", "contract")}, 0, "verified: revision=7"},
+		{"success", []string{"-contract", filepath.Join("..", "..", "..", "contract")}, 0, "verified: revision=17"},
 		{"missing directory", []string{"-contract", filepath.Join(t.TempDir(), "missing")}, 1, "open contract directory"},
 		{"help", []string{"-h"}, 0, "optional tansr-cli checkout"},
 		{"unknown flag", []string{"-update"}, 2, "flag provided but not defined"},

@@ -22,7 +22,7 @@ func TestRender(t *testing.T) {
 	}
 	text := string(source)
 	for _, want := range []string{
-		"package api", "const ManifestRevision = 7",
+		"package api", "const ManifestRevision = 17",
 		`Path: "/api/sessions/:id/tool-results/:targetId", Params: []string{"id", "targetId"}`,
 		`OpApprovalCredentialSubmit, Method: "POST", Path: "/api/approvals/:id/credential"`,
 		`ETagPath: []string{"configuration", "revision"}, ExpectedRevision: &ExpectedRevision{Path: []string{"expectedRevision"}, Kind: "integer"}`,

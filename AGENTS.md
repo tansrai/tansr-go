@@ -8,16 +8,16 @@
 先读 `doc/GO-01-SDK2与UAPI合同冻结-2026-10-07.md` 与本轮 `doc/GO-01-Go-SDK与Demo开发及验收.md`。
 GO-01 已收编；后续三平台实际运行与公开发行按 `doc/GO-02-三平台运行验收与公开发布.md` 执行，沿用同一冻结合同，不重开 GO-01 的任务分母。
 GO-03 的 `tansrai` 迁移按 `doc/GO-03-tansrai开源迁移与发布.md` 执行。当前模块路径为 `github.com/tansrai/tansr-go`，v0.3.0 起所有源码 imports 和当前接入教程统一使用该路径；GO-01/02 的历史证据及 v0.1.0/v0.2.0 标签保持原样。MIT 范围与上游参考资料许可见 `NOTICE.md`，不因仓库归属迁移修改冻结合同或参考资料。
-`contract/LOCK.json` 锁定 CLI `83c64b2c` 的 39 份合同/语义/参考文件；SDK 实现不准顺带改 schema、金样、操作目录或冻结字节。
+PST-SERVE-02 已显式升级：`contract/LOCK.json` 的公共合同锁定 CLI `d59972fb` / manifest r17（91 操作、87 围栏、12 families），43 份随包文件中的 18 份历史参考仍保留原 `83c64b2c` 字节和逐文件 pin。agent-session 私有 TS 新源只登记 source-only SHA，不随包复制；公开默认 checker 仅核元数据对应，可选 `-source` 作者模式才核私有 Git blob。详见 `doc/PST-SERVE-02-Go无盘双模式接入.md`。SDK 实现不准顺带改 schema、金样、操作目录或冻结字节。
 执行 `go run ./internal/gen/contractcheck` 校验本地锁，跨仓对照增加 `-source J:/tansr/tansr-cli`。新合同须先提修订和会签，再显式更新基线，不自动跟随上游 HEAD。
 
 ## 事实源(只读,路径以 tansr-cli 仓根为准)
 
 | 本仓副本 | 事实源 | 用途 |
 | --- | --- | --- |
-| `contract/api-manifest.json` | `packages/server/contract/api-manifest.json`(revision 7,81 操作 / 77 围栏操作) | **唯一**的操作目录事实源 → `api/operations_gen.go`(含三头事实:每操作 `etagPath` / `expectedRevision`、每族 `requestIdPath`) |
+| `contract/api-manifest.json` | `packages/server/contract/api-manifest.json`(revision 17,91 操作 / 87 围栏操作) | **唯一**的操作目录事实源 → `api/operations_gen.go`(含三头事实:每操作 `etagPath` / `expectedRevision`、每族 `requestIdPath`) |
 | `contract/unified-v1.schema.json` | `doc/rfc/unified-v1.schema.json` | `api/schema.go` 逐定义对照的校验规则来源(只读对照物,Go 不在运行时加载) |
-| `contract/unified-v1.golden.json` | `doc/rfc/unified-v1.golden.json`(165 向量) | `api` 类型形状与正负向量测试(`api/golden_test.go` 锁定向量计数);`api/replay_test.go` 经假 Serve 走 `/api` 全量回放,不可上线的区分按名锁定 |
+| `contract/unified-v1.golden.json` | `doc/rfc/unified-v1.golden.json`(166 向量) | `api` 类型形状与正负向量测试(`api/golden_test.go` 锁定向量计数);`api/replay_test.go` 经假 Serve 走 `/api` 全量回放,不可上线的区分按名锁定 |
 | `contract/canonical-cross-vectors.json` | `scripts/api/fixtures/canonical-cross-vectors.json` | `canonical` 127 交叉向量 |
 | `contract/sdk2-wire-v1.json` | `scripts/sdk2/fixtures/sdk2-wire-v1.json` | canonical 字节金样、路径段编码 |
 

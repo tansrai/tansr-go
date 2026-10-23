@@ -2,6 +2,15 @@
 
 `v0.1.0` 为原 UAPI 骨架；`v0.2.0` 汇总后续 UAPI r7、高层 SDK 和三平台运行验收；`v0.3.0` 迁移到 `tansrai` 的模块路径。合同以 `contract/LOCK.json` 和 `contract/PROVENANCE.json` 为准。旧版本发行证据见 GO-02，迁移版本的标签及公开代理结果见 [GO-03](doc/GO-03-tansrai开源迁移与发布.md)。
 
+## Unreleased — PST-SERVE-02
+
+- Add explicit terminal/cloud diskless Serve discovery, preinstalled archive bindings and source-managed SSE.
+- Preserve message request IDs and query original input receipts after a lost reply.
+- Reuse executor Runner with a cloud journal; first-claim tokens, unknown outcomes and cold reconciliation remain distinct.
+- Migrate complete memory catalogs and permanent receipts with shared writer fencing and explicit budgets.
+- Extend archive/tools demos with explicit cloud mode; no forced local archive or journal.
+- Upgrade public contract metadata to revision 17; historical private references keep their already-public bytes.
+
 ## v0.3.0（2026-10-07）
 
 ### tansrai 开源迁移（GO-03）

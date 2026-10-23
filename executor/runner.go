@@ -16,6 +16,7 @@ type RunnerOptions struct {
 	Tools               map[string]Tool
 	MemoryPublication   MemoryPublicationHost
 	TerminalPersistence TerminalPersistenceHost
+	PersistenceCustody  TerminalPersistenceHost
 	// Authorize must check the local session, binding and current host permission. A Serve claim
 	// alone is not permission to use the device. It runs before durable claim and again before IO.
 	Authorize    func(context.Context, Operation) error
@@ -75,6 +76,19 @@ func NewRunner(options RunnerOptions) (*Runner, error) {
 			}
 		}
 	}
+	if options.PersistenceCustody != nil {
+		count++
+		if options.TerminalPersistence == nil || !options.PersistenceCustody.RequiresEncryptedJournal() {
+			return nil, ErrUnsupported
+		}
+		journal, ok := options.Journal.(interface{ EncryptedAtRest() bool })
+		if !ok || !journal.EncryptedAtRest() {
+			return nil, ErrUnsupported
+		}
+	}
+	if _, ok := options.Tools[PersistenceCustodyToolName]; ok {
+		return nil, ErrUnsupported
+	}
 	if _, ok := options.Tools[TerminalPersistenceToolName]; ok {
 		return nil, ErrUnsupported
 	}
@@ -89,6 +103,12 @@ func NewRunner(options RunnerOptions) (*Runner, error) {
 	}
 	tools := make(map[string]Tool, len(options.Tools))
 	for _, definition := range options.Registration.Tools {
+		if definition.Name == PersistenceCustodyToolName {
+			if options.PersistenceCustody == nil || definition.DefinitionDigest != PersistenceCustodyDefinitionDigest {
+				return nil, ErrUnsupported
+			}
+			continue
+		}
 		if definition.Name == TerminalPersistenceToolName {
 			if options.TerminalPersistence == nil || definition.DefinitionDigest != TerminalPersistenceDefinitionDigest {
 				return nil, ErrUnsupported
@@ -372,6 +392,12 @@ func (r *Runner) execute(ctx context.Context, operation Operation, monitored boo
 		return Receipt{}, ErrUnsupported
 	}
 	tool, ok := r.options.Tools[operation.ToolName]
+	if operation.Request.Args["name"] == PersistenceCustodyToolName && r.options.PersistenceCustody != nil {
+		ok = true
+		tool = Tool{DefinitionDigest: PersistenceCustodyDefinitionDigest, Handle: func(c context.Context, a map[string]any) (any, error) {
+			return r.options.PersistenceCustody.Execute(c, operation, a)
+		}}
+	}
 	if operation.Request.Args["name"] == TerminalPersistenceToolName && r.options.TerminalPersistence != nil {
 		ok = true
 		tool = Tool{DefinitionDigest: TerminalPersistenceDefinitionDigest, Handle: func(c context.Context, a map[string]any) (any, error) {

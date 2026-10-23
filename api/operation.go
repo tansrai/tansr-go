@@ -101,14 +101,15 @@ func ClosureOperationNames() []string {
 // canonicalBodyFamilies lists the families whose request bodies must be strict canonical control JSON
 // (RFC-UAPI-1 §4; the server compares bytes). agent-session-v1 and facade operations use plain JSON.
 var canonicalBodyFamilies = map[string]bool{
-	"sdk2-ext-v1":              true,
-	"sdk2-archive-recovery-v1": true,
-	"archive-sync-v1":          true,
-	"sdk2-cache-v1":            true,
-	"sdk2-cache-core-v1":       true,
-	"terminal-services-v1":     true,
-	"terminal-observation-v1":  true,
-	"terminal-profile-v1":      true,
+	"sdk2-ext-v1":                    true,
+	"sdk2-archive-recovery-v1":       true,
+	"archive-sync-v1":                true,
+	"sdk2-cache-v1":                  true,
+	"sdk2-cache-core-v1":             true,
+	"terminal-services-v1":           true,
+	"terminal-observation-v1":        true,
+	"terminal-profile-v1":            true,
+	"persistence-custody-handoff-v1": true,
 }
 
 // UsesCanonicalBody reports whether request bodies of the operation are canonical-encoded.
@@ -126,9 +127,10 @@ var queryRevisionDefaults = map[string]map[string]string{
 		"sdk2-cache-core-v1":       "sdk2-cache-core-v1",
 	},
 	"contract": {
-		"terminal-services-v1":    "terminal-services-v1",
-		"terminal-observation-v1": "terminal-observation-v1",
-		"terminal-profile-v1":     "terminal-profile-v1",
+		"terminal-services-v1":           "terminal-services-v1",
+		"terminal-observation-v1":        "terminal-observation-v1",
+		"terminal-profile-v1":            "terminal-profile-v1",
+		"persistence-custody-handoff-v1": "persistence-custody-handoff-v1",
 	},
 }
 

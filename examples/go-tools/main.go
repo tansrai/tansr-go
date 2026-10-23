@@ -23,7 +23,7 @@ import (
 const declarationJSON = `{"name":"DemoOrderStatus","description":"Read the status of sample order DEMO-001; this is demonstration data.","parameters":{"orderId":{"type":"string","description":"Sample order ID: DEMO-001"}},"readOnly":true}`
 const toolName = "DemoOrderStatus"
 
-type options struct{ base, session, application, user, revision, executor, journal string }
+type options struct{ base, session, application, user, revision, executor, journal, mode string }
 
 func main() {
 	var opts options
@@ -33,7 +33,8 @@ func main() {
 	flag.StringVar(&opts.user, "user", os.Getenv("TANSR_END_USER_ID"), "authenticated end-user identity")
 	flag.StringVar(&opts.revision, "authorization-revision", os.Getenv("TANSR_AUTHORIZATION_REVISION"), "current authenticated authorization revision")
 	flag.StringVar(&opts.executor, "executor", "go-demo", "executor identity authorized by Serve policy")
-	flag.StringVar(&opts.journal, "journal", "", "private durable execution journal directory (required)")
+	flag.StringVar(&opts.mode, "mode", "terminal", "explicit execution persistence mode: terminal or cloud")
+	flag.StringVar(&opts.journal, "journal", "", "private durable execution journal directory (terminal only)")
 	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -66,18 +67,9 @@ func orderStatus(ctx context.Context, args map[string]any) (any, error) {
 }
 
 func run(ctx context.Context, opts options) error {
-	if opts.application == "" || opts.user == "" || opts.revision == "" || opts.journal == "" {
+	if opts.application == "" || opts.user == "" || opts.revision == "" || (opts.mode != "cloud" && opts.journal == "") || (opts.mode != "" && opts.mode != "terminal" && opts.mode != "cloud") || (opts.mode == "cloud" && opts.journal != "") {
 		return errors.New("provide application, user, authorization-revision and a private journal directory; these must match the token and Serve policy")
 	}
-	path, err := filepath.Abs(opts.journal)
-	if err != nil {
-		return err
-	}
-	journal, err := executor.NewFileJournal(path)
-	if err != nil {
-		return err
-	}
-	defer journal.Close()
 	transport, err := demoutil.Client(opts.base)
 	if err != nil {
 		return err
@@ -101,6 +93,43 @@ func run(ctx context.Context, opts options) error {
 		return err
 	}
 	fmt.Println("session:", demoutil.Text(current.ID()))
+	var runner *executor.Runner
+	var journal executor.Journal
+	if opts.mode == "cloud" {
+		view, e := current.Persistence(ctx)
+		if e != nil {
+			return e
+		}
+		if view.Mode != "cloud" || !view.Handoff.ExecutionJournal {
+			return errors.New("Serve did not advertise cloud execution journal")
+		}
+		cloud, e := executor.NewCloudJournal(client, current.ID(), func() (executor.Connection, error) {
+			if runner == nil {
+				return executor.Connection{}, executor.ErrConflict
+			}
+			connection, ok := runner.Connection()
+			if !ok {
+				return connection, executor.ErrConflict
+			}
+			return connection, nil
+		})
+		if e != nil {
+			return e
+		}
+		defer cloud.Close()
+		journal = cloud
+	} else {
+		path, e := filepath.Abs(opts.journal)
+		if e != nil {
+			return e
+		}
+		local, e := executor.NewFileJournal(path)
+		if e != nil {
+			return e
+		}
+		defer local.Close()
+		journal = local
+	}
 	digest, err := executor.DefinitionDigest(declaration())
 	if err != nil {
 		return err
@@ -109,7 +138,7 @@ func run(ctx context.Context, opts options) error {
 	registration := executor.Registration{Protocol: executor.Protocol, ExecutorID: opts.executor, Platform: executor.CurrentPlatform(),
 		Workspaces: []executor.Workspace{workspace}, Operations: []string{"tool.invoke"}, Tools: []executor.ToolDefinition{{Name: toolName, DefinitionDigest: digest}}}
 	var expected *executor.Binding
-	runner, err := executor.NewRunner(executor.RunnerOptions{Client: client, Registration: registration, Journal: journal,
+	runner, err = executor.NewRunner(executor.RunnerOptions{Client: client, Registration: registration, Journal: journal,
 		Tools: map[string]executor.Tool{toolName: {DefinitionDigest: digest, Handle: orderStatus}},
 		Authorize: func(call context.Context, operation executor.Operation) error {
 			if err := call.Err(); err != nil {

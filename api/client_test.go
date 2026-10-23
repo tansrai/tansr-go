@@ -295,8 +295,8 @@ func TestNewOptions(t *testing.T) {
 	if err != nil || c.BaseURL() != "http://host:8080" {
 		t.Fatalf("origin normalisation: %v %q", err, c.BaseURL())
 	}
-	if Locked().ManifestRevision != 7 || Locked().SchemaHash != ManifestSchemaHash {
-		t.Fatalf("locked revision: %+v (contract/api-manifest.json revision 7 expected)", Locked())
+	if Locked().ManifestRevision != 17 || Locked().SchemaHash != ManifestSchemaHash {
+		t.Fatalf("locked revision: %+v (contract/api-manifest.json revision 17 expected)", Locked())
 	}
 }
 

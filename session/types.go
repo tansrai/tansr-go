@@ -8,6 +8,8 @@ import (
 // WriteOptions is shared by conversation writes. Neither a key nor a deadline
 // is generated implicitly; callers retain them across result reconciliation.
 type WriteOptions struct {
+	// RequestID is retained by the caller before sending; lost replies are queried by this exact key.
+	RequestID      string
 	IdempotencyKey string
 	Deadline       time.Time
 }

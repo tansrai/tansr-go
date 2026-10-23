@@ -247,6 +247,7 @@
         "session.checkpoint.create",
         "session.checkpoint.import",
         "session.checkpoint.restore",
+        "session.checkpoint.restore_with_summary",
         "session.checkpoint.export",
         "session.checkpoint.delete",
         "session.cwd.set",
@@ -255,6 +256,9 @@
         "session.input.capabilities",
         "session.input.submit",
         "session.input.status",
+        "session.persistence.read",
+        "session.input.query",
+        "session.input.list",
         "approval.credential.submit",
         "execution.initialize",
         "execution.capabilities",
@@ -265,6 +269,10 @@
         "executor.heartbeat",
         "executor.operations.poll",
         "executor.receipt.submit",
+        "execution.journal.claim",
+        "execution.journal.complete",
+        "execution.journal.read",
+        "execution.journal.list",
         "archive.capabilities",
         "archive.binding.target",
         "archive.binding.create",
@@ -293,6 +301,8 @@
         "cache.diagnostics",
         "cache.core.diagnostics",
         "terminal.capabilities",
+        "terminal.custody.capabilities",
+        "terminal.custody.query",
         "terminal.binding.create",
         "terminal.executor.events.observe",
         "terminal.output.batch",
@@ -309,13 +319,13 @@
         "terminal.profile.catalog",
         "terminal.profile.usage"
       ],
-      "description": "围栏操作名 77 = manifest 操作目录去 4 条部署级发现读(discovery.* 与 session.capabilities);事实源 closure.ts CLOSURE_OPERATIONS,目录序。"
+      "description": "围栏操作名 87，事实源 closure.ts CLOSURE_OPERATIONS。可选托管交接只在真实装配时enabled。"
     },
     "OperationName": {
       "type": "string",
       "minLength": 3,
       "maxLength": 128,
-      "pattern": "^[a-z]+(\\.[a-z][a-z0-9]*)+$",
+      "pattern": "^[a-z]+(\\.[a-z][a-z0-9_]*)+$",
       "description": "manifest 操作目录名形制(用户拍板 D2 点分风格;generate-manifest.mjs OPERATION_NAME_PATTERN)。"
     },
     "ApiPathTemplate": {
@@ -1496,6 +1506,9 @@
             "session.checkpoint.restore": {
               "$ref": "#/definitions/OperationState"
             },
+            "session.checkpoint.restore_with_summary": {
+              "$ref": "#/definitions/OperationState"
+            },
             "session.checkpoint.export": {
               "$ref": "#/definitions/OperationState"
             },
@@ -1518,6 +1531,15 @@
               "$ref": "#/definitions/OperationState"
             },
             "session.input.status": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "session.persistence.read": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "session.input.query": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "session.input.list": {
               "$ref": "#/definitions/OperationState"
             },
             "approval.credential.submit": {
@@ -1548,6 +1570,18 @@
               "$ref": "#/definitions/OperationState"
             },
             "executor.receipt.submit": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "execution.journal.claim": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "execution.journal.complete": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "execution.journal.read": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "execution.journal.list": {
               "$ref": "#/definitions/OperationState"
             },
             "archive.capabilities": {
@@ -1634,6 +1668,12 @@
             "terminal.capabilities": {
               "$ref": "#/definitions/OperationState"
             },
+            "terminal.custody.capabilities": {
+              "$ref": "#/definitions/OperationState"
+            },
+            "terminal.custody.query": {
+              "$ref": "#/definitions/OperationState"
+            },
             "terminal.binding.create": {
               "$ref": "#/definitions/OperationState"
             },
@@ -1697,6 +1737,7 @@
             "session.checkpoint.create",
             "session.checkpoint.import",
             "session.checkpoint.restore",
+            "session.checkpoint.restore_with_summary",
             "session.checkpoint.export",
             "session.checkpoint.delete",
             "session.cwd.set",
@@ -1705,6 +1746,9 @@
             "session.input.capabilities",
             "session.input.submit",
             "session.input.status",
+            "session.persistence.read",
+            "session.input.query",
+            "session.input.list",
             "approval.credential.submit",
             "execution.initialize",
             "execution.capabilities",
@@ -1715,6 +1759,10 @@
             "executor.heartbeat",
             "executor.operations.poll",
             "executor.receipt.submit",
+            "execution.journal.claim",
+            "execution.journal.complete",
+            "execution.journal.read",
+            "execution.journal.list",
             "archive.capabilities",
             "archive.binding.target",
             "archive.binding.create",
@@ -1743,6 +1791,8 @@
             "cache.diagnostics",
             "cache.core.diagnostics",
             "terminal.capabilities",
+            "terminal.custody.capabilities",
+            "terminal.custody.query",
             "terminal.binding.create",
             "terminal.executor.events.observe",
             "terminal.output.batch",

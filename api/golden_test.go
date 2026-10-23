@@ -188,12 +188,12 @@ type pathError string
 func (e pathError) Error() string { return "path segment not found: " + string(e) }
 func errPath(key string) error    { return pathError(key) }
 
-// goldenCounts locks the vendored golden (doc/rfc/unified-v1.golden.json, sha256 42531a39…, revision 7):
-// 165 vectors, 41 valid / 124 invalid, of which EventEnvelope has 7 valid / 18 invalid (D18 seven-key
+// goldenCounts locks the vendored golden (doc/rfc/unified-v1.golden.json, sha256 f5ad381e…, PST-SERVE-02):
+// 166 vectors, 42 valid / 124 invalid, of which EventEnvelope has 7 valid / 18 invalid (D18 seven-key
 // wire form). Re-vendoring a new golden must update these numbers together with contract/PROVENANCE.json.
 const (
-	goldenTotal           = 165
-	goldenValid           = 41
+	goldenTotal           = 166
+	goldenValid           = 42
 	goldenInvalid         = 124
 	goldenEnvelopeValid   = 7
 	goldenEnvelopeInvalid = 18
@@ -309,7 +309,7 @@ func assertTyped(t *testing.T, definition string, value any) {
 	case DefCapabilityClosure:
 		var c CapabilityClosure
 		strict(&c)
-		if len(c.Operations) != 77 || len(c.Domains) != 8 {
+		if len(c.Operations) != 87 || len(c.Domains) != 8 {
 			t.Fatalf("closure decoded %d operations / %d domains", len(c.Operations), len(c.Domains))
 		}
 	case DefFacadeError, DefUnifiedError:

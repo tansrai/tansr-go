@@ -22,7 +22,7 @@ import (
 
 const (
 	Format   = "tansr-sdk2-uapi-lock-v1"
-	Baseline = "sdk2-uapi-2026-10-07"
+	Baseline = "pst-serve-02-2026-10-23"
 
 	manifestSource = "packages/server/contract/api-manifest.json"
 )
@@ -41,6 +41,13 @@ type Lock struct {
 	FamilyCount      int    `json:"familyCount"`
 	Policy           string `json:"policy"`
 	Files            []File `json:"files"`
+	// SourceOnly pins a manifest's private source hash without distributing new private bytes.
+	SourceOnly []SourceFact `json:"sourceOnly,omitempty"`
+}
+
+type SourceFact struct {
+	Source string `json:"source"`
+	SHA256 string `json:"sha256"`
 }
 
 type File struct {
@@ -48,19 +55,23 @@ type File struct {
 	Source string `json:"source"`
 	SHA256 string `json:"sha256"`
 	Role   string `json:"role"`
+	// Historical references retain their already-public bytes; only public contracts advance.
+	SourceCommit string `json:"sourceCommit,omitempty"`
 }
 
 // Report describes a successfully verified snapshot. SourceHEAD is populated
 // only when the caller requested comparison with a source checkout.
 type Report struct {
-	Baseline         string
-	SourceCommit     string
-	SourceHEAD       string
-	ManifestRevision int
-	SchemaHash       string
-	Files            int
-	Families         int
-	Operations       int
+	Baseline                string
+	SourceCommit            string
+	SourceHEAD              string
+	ManifestRevision        int
+	SchemaHash              string
+	Files                   int
+	Families                int
+	Operations              int
+	SourceOnlyMetadata      int
+	SourceOnlyBytesVerified bool
 }
 
 type family struct {
@@ -83,7 +94,7 @@ var requiredFamilies = []string{
 	"agent-session-v1", "sdk2-ext-v1", "sdk2-archive-recovery-v1",
 	"archive-sync-v1", "sdk2-cache-v1", "sdk2-cache-core-v1",
 	"terminal-services-v1", "terminal-observation-v1", "terminal-profile-v1",
-	"terminal-shell-sandbox-v1", "unified-v1",
+	"terminal-shell-sandbox-v1", "unified-v1", "persistence-custody-handoff-v1",
 }
 
 // Check verifies LOCK.json and every listed file beneath contractDir. When
@@ -131,6 +142,9 @@ func Check(contractDir, sourceDir string) (Report, error) {
 			manifestBytes = data
 		}
 	}
+	for _, fact := range lock.SourceOnly {
+		bySource[fact.Source] = File{Source: fact.Source, SHA256: fact.SHA256, Role: "contract"}
+	}
 	if len(manifestBytes) == 0 {
 		problems = append(problems, errors.New("lock must include the api-manifest.json source"))
 	}
@@ -157,6 +171,8 @@ func Check(contractDir, sourceDir string) (Report, error) {
 	report.ManifestRevision = m.Revision
 	report.SchemaHash = m.SchemaHash
 	report.Files = len(lock.Files)
+	report.SourceOnlyMetadata = len(lock.SourceOnly)
+	report.SourceOnlyBytesVerified = sourceDir != "" && len(lock.SourceOnly) > 0
 	report.Families = len(m.Families)
 	report.Operations = len(m.Operations)
 	return report, nil
@@ -169,11 +185,11 @@ func validateLock(lock Lock) error {
 	if !isHex(lock.SourceCommit, 40) {
 		return errors.New("sourceCommit must be a lowercase 40-digit Git SHA")
 	}
-	if lock.ManifestRevision != 7 {
-		return fmt.Errorf("manifestRevision: got %d, frozen baseline requires 7", lock.ManifestRevision)
+	if lock.ManifestRevision != 17 {
+		return fmt.Errorf("manifestRevision: got %d, frozen baseline requires 17", lock.ManifestRevision)
 	}
-	if lock.SourceBranch != "main" || !isHex(lock.SchemaHash, 64) || lock.OperationCount != 81 || lock.FamilyCount != 11 || strings.TrimSpace(lock.Policy) == "" {
-		return errors.New("lock metadata requires sourceBranch main, a schemaHash, 81 operations, 11 families and a nonempty policy")
+	if lock.SourceBranch != "main" || !isHex(lock.SchemaHash, 64) || lock.OperationCount != 91 || lock.FamilyCount != 12 || strings.TrimSpace(lock.Policy) == "" {
+		return errors.New("lock metadata requires sourceBranch main, a schemaHash, 91 operations, 12 families and a nonempty policy")
 	}
 	if len(lock.Files) == 0 {
 		return errors.New("lock files must not be empty")
@@ -196,6 +212,24 @@ func validateLock(lock Lock) error {
 		if file.Role != "contract" && file.Role != "semantics" && file.Role != "reference" {
 			return fmt.Errorf("%s: unknown role %q", file.Path, file.Role)
 		}
+		if file.SourceCommit != "" && (file.Role == "contract" && !strings.HasPrefix(file.Path, "reference/") || !isHex(file.SourceCommit, 40)) {
+			return fmt.Errorf("%s: per-file sourceCommit is only a 40-digit historical reference pin", file.Path)
+		}
+	}
+	for _, fact := range lock.SourceOnly {
+		if !validPath(fact.Source) || !isHex(fact.SHA256, 64) {
+			return errors.New("invalid source-only contract fact")
+		}
+		for _, file := range lock.Files {
+			if strings.EqualFold(file.Source, fact.Source) && file.SourceCommit == "" {
+				return errors.New("source-only fact duplicates current vendored source")
+			}
+		}
+		key := "source-only:" + strings.ToLower(fact.Source)
+		if sources[key] {
+			return errors.New("duplicate source-only fact")
+		}
+		sources[key] = true
 	}
 	return nil
 }
@@ -205,7 +239,7 @@ func validateManifest(m manifest, lock Lock, bySource map[string]File) error {
 		return fmt.Errorf("manifest identity differs from frozen unified-v1 revision %d", lock.ManifestRevision)
 	}
 	if len(m.Families) != lock.FamilyCount || len(m.Operations) != lock.OperationCount {
-		return fmt.Errorf("manifest inventory: got %d families / %d operations, require 11 / 81", len(m.Families), len(m.Operations))
+		return fmt.Errorf("manifest inventory: got %d families / %d operations, require 12 / 91", len(m.Families), len(m.Operations))
 	}
 	seen := make(map[string]bool, len(m.Families))
 	var hashes []string
@@ -250,6 +284,9 @@ func requireSource(files map[string]File, source, hash string, contractOnly bool
 	if contractOnly && file.Role != "contract" {
 		return fmt.Errorf("source %q must have contract role", source)
 	}
+	if contractOnly && file.SourceCommit != "" {
+		return fmt.Errorf("current family source %q cannot use a historical reference pin", source)
+	}
 	if file.SHA256 != hash {
 		return fmt.Errorf("source %q SHA256 differs between manifest and lock", source)
 	}
@@ -274,6 +311,12 @@ func checkSource(sourceDir string, lock Lock) (string, error) {
 	defer root.Close()
 	var problems []error
 	for _, file := range lock.Files {
+		if file.SourceCommit != "" {
+			if _, err := git(sourceDir, "merge-base", "--is-ancestor", file.SourceCommit, lock.SourceCommit); err != nil {
+				problems = append(problems, fmt.Errorf("historical reference %s commit is not an ancestor: %w", file.Path, err))
+			}
+			continue // Original blob was checked; references deliberately do not follow current private sources.
+		}
 		data, err := readFile(root, file.Source)
 		if err != nil {
 			problems = append(problems, fmt.Errorf("source %s: %w", file.Source, err))
@@ -281,6 +324,12 @@ func checkSource(sourceDir string, lock Lock) (string, error) {
 		}
 		if got := digest(data); got != file.SHA256 {
 			problems = append(problems, fmt.Errorf("%s source %s SHA256: got %s, locked %s", driftKind(file), file.Source, got, file.SHA256))
+		}
+	}
+	for _, fact := range lock.SourceOnly {
+		data, e := readFile(root, fact.Source)
+		if e != nil || digest(data) != fact.SHA256 {
+			problems = append(problems, fmt.Errorf("source-only current contract drift: %s: %v", fact.Source, e))
 		}
 	}
 	return head, errors.Join(problems...)
@@ -291,8 +340,16 @@ func checkSource(sourceDir string, lock Lock) (string, error) {
 // because the current files happen to match the consumer's lock.
 func checkCommittedFiles(sourceDir string, lock Lock) error {
 	var input strings.Builder
-	for _, file := range lock.Files {
-		fmt.Fprintf(&input, "%s:%s\n", lock.SourceCommit, file.Source)
+	files := append([]File(nil), lock.Files...)
+	for _, fact := range lock.SourceOnly {
+		files = append(files, File{Source: fact.Source, SHA256: fact.SHA256, Role: "contract"})
+	}
+	for _, file := range files {
+		commit := lock.SourceCommit
+		if file.SourceCommit != "" {
+			commit = file.SourceCommit
+		}
+		fmt.Fprintf(&input, "%s:%s\n", commit, file.Source)
 	}
 	command := exec.Command("git", "-C", sourceDir, "cat-file", "--batch")
 	command.Stdin = strings.NewReader(input.String())
@@ -304,11 +361,15 @@ func checkCommittedFiles(sourceDir string, lock Lock) error {
 	}
 	buffer := bytes.NewBuffer(output)
 	var problems []error
-	for _, file := range lock.Files {
+	for _, file := range files {
+		commit := lock.SourceCommit
+		if file.SourceCommit != "" {
+			commit = file.SourceCommit
+		}
 		header, err := buffer.ReadString('\n')
 		parts := strings.Fields(header)
 		if err != nil || len(parts) != 3 || parts[1] != "blob" {
-			return fmt.Errorf("locked source commit %s does not contain regular blob %q", lock.SourceCommit, file.Source)
+			return fmt.Errorf("locked source commit %s does not contain regular blob %q", commit, file.Source)
 		}
 		size, err := strconv.Atoi(parts[2])
 		if err != nil || size < 0 || size >= buffer.Len() {
@@ -320,7 +381,7 @@ func checkCommittedFiles(sourceDir string, lock Lock) error {
 			return fmt.Errorf("incomplete Git blob for %q", file.Source)
 		}
 		if got := digest(data); got != file.SHA256 {
-			problems = append(problems, fmt.Errorf("%s sourceCommit %s file %s SHA256: got %s, locked %s", driftKind(file), lock.SourceCommit, file.Source, got, file.SHA256))
+			problems = append(problems, fmt.Errorf("%s sourceCommit %s file %s SHA256: got %s, locked %s", driftKind(file), commit, file.Source, got, file.SHA256))
 		}
 	}
 	if buffer.Len() != 0 {

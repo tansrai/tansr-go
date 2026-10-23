@@ -41,8 +41,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "%s verified: revision=%d files=%d families=%d operations=%d schemaHash=%s sourceCommit=%s\n",
 		report.Baseline, report.ManifestRevision, report.Files, report.Families, report.Operations, report.SchemaHash, report.SourceCommit)
+	if report.SourceOnlyMetadata > 0 {
+		fmt.Fprintf(stdout, "source-only metadata=%d; private source bytes verified=%t (without -source, only manifest/hash correspondence is checked)\n", report.SourceOnlyMetadata, report.SourceOnlyBytesVerified)
+	}
 	if report.SourceHEAD != "" {
-		fmt.Fprintf(stdout, "source checkout verified: HEAD=%s (frozen bytes unchanged)\n", report.SourceHEAD)
+		fmt.Fprintf(stdout, "source checkout verified: HEAD=%s (current public contracts and historical per-file Git references checked separately)\n", report.SourceHEAD)
 	}
 	return 0
 }
