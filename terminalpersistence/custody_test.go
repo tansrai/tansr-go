@@ -222,6 +222,14 @@ func testImport(t *testing.T, s *FileStore, f obj, owner Owner) {
 	}
 }
 func TestCustodyNodeExportImportColdRecovery(t *testing.T) {
+	testCustodyNodeExportImportColdRecovery(t, OpenFileStore)
+}
+
+func TestIndexedCustodyNodeExportImportColdRecovery(t *testing.T) {
+	testCustodyNodeExportImportColdRecovery(t, OpenIndexedFileStore)
+}
+
+func testCustodyNodeExportImportColdRecovery(t *testing.T, openSource func(Options) (*FileStore, error)) {
 	f := custodyFixture(t)
 	owner := custodyOwner(t, f["owner"])
 	o, _ := fixture(t)
@@ -229,7 +237,7 @@ func TestCustodyNodeExportImportColdRecovery(t *testing.T) {
 	authority := &testCustodyAuthority{ticket: m(detached(f["ticket"])), selected: Custody{"source-device", "1", "terminal"}, frozen: true, claims: map[string]bool{}}
 	o.Custody = &Custody{"target-device", "1", "terminal"}
 	o.CustodyAuthority = authority
-	s, e := OpenFileStore(o)
+	s, e := openSource(o)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -259,11 +267,11 @@ func TestCustodyNodeExportImportColdRecovery(t *testing.T) {
 	o.Mode = "reopen"
 	unsafeOptions := o
 	unsafeOptions.Custody, unsafeOptions.CustodyAuthority = nil, nil
-	if unsafeStore, err := OpenFileStore(unsafeOptions); err == nil {
+	if unsafeStore, err := openSource(unsafeOptions); err == nil {
 		unsafeStore.Close()
 		t.Fatal("cold open dropped shared writer authority")
 	}
-	s, e = OpenFileStore(o)
+	s, e = openSource(o)
 	if e != nil {
 		t.Fatal("cold reopen", e)
 	}

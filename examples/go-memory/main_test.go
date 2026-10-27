@@ -264,6 +264,12 @@ func TestLocalStopStillPersistsKnownReceiptAndChecksCurrentScope(t *testing.T) {
 }
 
 func TestNewProfileOfflineRekeyReturnsOnlyReadOnlyCandidate(t *testing.T) {
+	testProfileOfflineRekey(t, "legacy-snapshot-v1", terminalpersistence.OpenFileStore)
+}
+func TestIndexedProfileOfflineRekeyUsesSelectedLayout(t *testing.T) {
+	testProfileOfflineRekey(t, "authenticated-indexed-v2", terminalpersistence.OpenIndexedFileStore)
+}
+func testProfileOfflineRekey(t *testing.T, layout string, openSource func(terminalpersistence.Options) (*terminalpersistence.FileStore, error)) {
 	directory, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -271,6 +277,7 @@ func TestNewProfileOfflineRekeyReturnsOnlyReadOnlyCandidate(t *testing.T) {
 	scope := executor.Scope{ApplicationScopeID: "app", EndUserID: "user", AuthorizationRevision: "1"}
 	identity := terminalpersistence.Identity{ApplicationScopeID: "app", EndUserID: "user", SourceID: "source", SourceGeneration: "1", DomainKey: "domain"}
 	o := options{profile: "terminal-persistence-v1", mode: "rekey-publication", executor: "device", file: filepath.Join(directory, "original.bin"), journal: filepath.Join(directory, "journal"), access: filepath.Join(directory, "scope.json"), identity: filepath.Join(directory, "identity.json"), target: filepath.Join(directory, "copy.bin")}
+	o.layout = layout
 	for path, value := range map[string]any{o.access: scope, o.identity: identity} {
 		raw, _ := json.Marshal(value)
 		if err = os.WriteFile(path, raw, 0600); err != nil {
@@ -281,7 +288,7 @@ func TestNewProfileOfflineRekeyReturnsOnlyReadOnlyCandidate(t *testing.T) {
 	t.Setenv("TANSR_MEMORY_KEY", hex.EncodeToString(oldKey))
 	t.Setenv("TANSR_MEMORY_NEW_KEY", hex.EncodeToString(newKey))
 	opts := terminalpersistence.Options{Path: o.file, Mode: "create", Key: oldKey, Identity: identity, CurrentScope: func() (executor.Scope, error) { return scope, nil }}
-	source, err := terminalpersistence.OpenFileStore(opts)
+	source, err := openSource(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +307,7 @@ func TestNewProfileOfflineRekeyReturnsOnlyReadOnlyCandidate(t *testing.T) {
 	opts.Path = o.target
 	opts.Key = newKey
 	opts.Mode = "reopen"
-	copied, err := terminalpersistence.OpenFileStore(opts)
+	copied, err := openSource(opts)
 	if err != nil {
 		t.Fatal(err)
 	}

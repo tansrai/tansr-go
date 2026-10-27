@@ -250,6 +250,12 @@ func TestProtectedBaseAndCASReject(t *testing.T) {
 	}
 }
 func TestOwnerQueryOnlyAndPostCommitRevocation(t *testing.T) {
+	testOwnerQueryOnlyAndPostCommitRevocation(t, open)
+}
+func TestIndexedOwnerQueryOnlyAndPostCommitRevocation(t *testing.T) {
+	testOwnerQueryOnlyAndPostCommitRevocation(t, indexedOpen)
+}
+func testOwnerQueryOnlyAndPostCommitRevocation(t *testing.T, open func(*testing.T, Options) *FileStore) {
 	opts, o := fixture(t)
 	revoked := false
 	opts.CurrentScope = func() (executor.Scope, error) {

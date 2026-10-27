@@ -13,6 +13,7 @@ func (s *FileStore) custodyTransaction(ctx context.Context, check func() error, 
 	defer caught(&err)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer s.discardCompleteView()
 	if s.closed {
 		return ErrClosed
 	}
@@ -47,6 +48,7 @@ func (s *FileStore) custodyRead(ctx context.Context, check func() error, run fun
 	defer caught(&err)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer s.discardCompleteView()
 	if s.closed {
 		return ErrClosed
 	}

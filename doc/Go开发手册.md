@@ -395,3 +395,30 @@ go install github.com/tansrai/tansr-go/examples/go-archive@v0.3.0
 | EOF / replay gap | 原会话、原请求对账；重新订阅或核对历史，不能打印成功或重复发消息 |
 | 档案完整性、错密钥或 ACK 冲突 | 保存原介质与原请求，按专项文档处理；不清空重建或提前确认覆盖 |
 | `go get` 网络失败 | 核查企业网络、Go 代理和 sumdb 可达性；保持校验开启，不能用本地 replace 冒充公开发行消费 |
+
+## INIT-01 标准准备入口（2026-10-26，未发布候选）
+
+`session.Client.Prepare(ctx, createOptions, preparationOptions)` 复用原 create/resume 意图，再读取当前能力闭包并调用 SDK2 initialize。使用同一个 API transport 构造会话与 executor 客户端；Scope 必须由宿主当前认证事实提供，不从会话 ID 猜测。`OnSessionConfirmed` 在初始化之前交回原 Session；后续 `PreparationError.Session` 和 `Unwrap()` 保留已确认身份与原错误。失败、取消或失回不会重建、关闭、换键或自动重试。
+
+```go
+execution, err := executor.NewClient(transport, currentScope)
+if err != nil { return err }
+prepared, err := sessions.Prepare(startupContext, originalCreateOptions, session.PreparationOptions{
+    Execution: execution,
+    OnSessionConfirmed: func(s *session.Session) { saveConfirmedSessionID(s.ID()) },
+    OnProgress: func(p session.PreparationProgress) { showLoading(p.Stage, p.Status) },
+})
+```
+
+`RequestedTools == nil` 省略字段，非 nil 空切片显式关闭工具。准备 ctx 不保存在返回 Session；后续会话调用传入独立上下文。进度仅报告实际 `connecting → session-confirmed → initializing-capabilities → ready`，不是服务器状态、百分比或授权。同步观察回调 panic 被隔离，回调须快速返回；未配置的设备、供材或事件流不被自动启动，也不虚报对应可选阶段完成。需要 terminal 供材的应用仍先按既有宿主边界安装相应服务。
+
+`examples/go-chat` 新建/恢复现在使用同一入口，加载阶段写往原输出，确认 ID 在后续失败前可见。新增 `-application`、`-user`、`-authorization-revision`（或已有 `TANSR_APPLICATION_SCOPE_ID` / `TANSR_END_USER_ID` / `TANSR_AUTHORIZATION_REVISION` 环境值），不得伪造；模型、业务工具、事件观察和后续写操作维持原接口。此增量不扩展线协议或合同资产。
+### INIT-A12 显式建会前供材（2026-10-26，本地候选）
+
+`PreparationOptions.PreparePersistence` 是可选的开发者端口，接收本次准备的 `context.Context`。只有其返回才表示独立持久化来源真实 ready，SDK 随后才执行原建会/恢复；阶段 `preparing-persistence` 仅在配置时出现。云模式省略该选项，不增加 IO。它不生成端侧来源协议、不把设备 Runner 前移，也不能用空回调冒充供材能力。
+
+回调返回 `nil, nil` 表示只等待外部常驻来源，SDK 无停止权；返回 `PersistenceResource` 明确移交本次 owned 本地资源。成功后保留 `PreparedSession` 并显式调用 `Stop()`，只停止该资源，不关闭远端 Session。Stop 并发调用只实际执行一次，成功或失败结果均保留；未知停止不自动重试。回调抛错前尚未交回的资源由 provider 自行清理，合法迟到返回的资源则在取消后由 SDK 收回且不再 POST。后继失败保留 `PreparationError.Cause` 与确认 Session，`CleanupError` 单列，不替换原 unknown。
+
+provider 必须用独立长期生命周期承接后台工作，传入 ctx 仅控制准备/等待就绪，不得在成功后以 ctx 取消连带停掉长期来源。回调与 Stop 应合作结清，SDK 不启动额外后台任务假装完成。真实来源权限、原身份与写者围栏仍归现有平台/宿主端口判断，本入口没有新增授权。
+
+本批新增 7 项定向反例通过：ready 前零 HTTP、来源失败零 POST、独立 cloud 不受另一个供材等待阻塞、成功移交/借用不停止、late cancel 收回、后继失败与未知清理结果保真、意外 transport panic 时保原 panic 并清理自有资源，以及原 deadline 已过时不调用 provider。首次 borrowed 夹具漏原请求键被原合同拒绝，修夹具后通过，红记录保留。未重跑原全池，未测试真实平台供材通道，不将显式编排接缝代作内置端侧协议已交付。

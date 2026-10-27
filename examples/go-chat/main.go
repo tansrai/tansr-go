@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/tansrai/tansr-go/examples/internal/demoutil"
+	"github.com/tansrai/tansr-go/executor"
 	"github.com/tansrai/tansr-go/session"
 )
 
 type options struct {
 	base, resume, model, message string
+	application, user, revision  string
 	timeout                      time.Duration
 	close                        bool
 }
@@ -28,6 +30,9 @@ func main() {
 	flag.StringVar(&opts.resume, "resume", "", "resume the same session, never create a replacement")
 	flag.StringVar(&opts.model, "model", "", "model for a new session; application policy applies")
 	flag.StringVar(&opts.message, "message", "", "one turn; omit for interactive multi-turn chat")
+	flag.StringVar(&opts.application, "application", os.Getenv("TANSR_APPLICATION_SCOPE_ID"), "authenticated application scope")
+	flag.StringVar(&opts.user, "user", os.Getenv("TANSR_END_USER_ID"), "authenticated end-user identity")
+	flag.StringVar(&opts.revision, "authorization-revision", os.Getenv("TANSR_AUTHORIZATION_REVISION"), "current authenticated authorization revision")
 	flag.DurationVar(&opts.timeout, "timeout", 10*time.Minute, "overall deadline, 0 disables it")
 	flag.BoolVar(&opts.close, "close", false, "close on exit; default preserves the session for resume")
 	flag.Parse()
@@ -53,16 +58,22 @@ func run(ctx context.Context, opts options, input io.Reader, out io.Writer) (run
 	if err != nil {
 		return err
 	}
-	var current *session.Session
-	if opts.resume != "" {
-		current, err = client.Resume(ctx, opts.resume)
-	} else {
-		current, err = client.Create(ctx, session.CreateOptions{Model: opts.model})
+	execution, err := executor.NewClient(transport, executor.Scope{ApplicationScopeID: opts.application, EndUserID: opts.user, AuthorizationRevision: opts.revision})
+	if err != nil {
+		return fmt.Errorf("set authenticated application/user/authorization-revision for initialization: %w", err)
 	}
+	create := session.CreateOptions{Model: opts.model}
+	if opts.resume != "" {
+		create = session.CreateOptions{Resume: &session.ResumeReference{SessionID: opts.resume}}
+	}
+	prepared, err := client.Prepare(ctx, create, session.PreparationOptions{Execution: execution,
+		OnSessionConfirmed: func(s *session.Session) { fmt.Fprintln(out, "session:", demoutil.Text(s.ID())) },
+		OnProgress:         func(p session.PreparationProgress) { fmt.Fprintln(out, "prepare:", p.Stage, p.Status) },
+	})
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "session:", demoutil.Text(current.ID()))
+	current := prepared.Session
 	if opts.close {
 		defer func() {
 			end, cancel := context.WithTimeout(context.Background(), 5*time.Second)

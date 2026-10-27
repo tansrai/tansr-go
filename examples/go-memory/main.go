@@ -25,10 +25,11 @@ import (
 	"github.com/tansrai/tansr-go/terminalpersistence"
 )
 
-type options struct{ base, session, executor, workspace, file, journal, mode, access, identity, bindingRequest, target, profile string }
+type options struct{ base, session, executor, workspace, file, journal, mode, access, identity, bindingRequest, target, profile, layout string }
 
 func flags(f *flag.FlagSet, o *options) {
 	f.StringVar(&o.profile, "profile", "memory-publication", "memory-publication or terminal-persistence-v1; new profile requires an independent media path and TANSR_JOURNAL_KEY")
+	f.StringVar(&o.layout, "layout", "legacy-snapshot-v1", "terminal-persistence-v1 media: legacy-snapshot-v1 or authenticated-indexed-v2; use the same explicit value for create/reopen")
 	f.StringVar(&o.base, "base", "http://127.0.0.1:8787", "Serve origin")
 	f.StringVar(&o.session, "session", "", "existing session selected by trusted controller (required)")
 	f.StringVar(&o.executor, "executor", "", "executor identity authorized by Serve (required)")
@@ -107,6 +108,12 @@ func run(ctx context.Context, o options) error {
 		o.profile = "memory-publication"
 	}
 	persistence := o.profile == "terminal-persistence-v1"
+	openPersistence := terminalpersistence.OpenFileStore
+	if o.layout == "authenticated-indexed-v2" && persistence {
+		openPersistence = terminalpersistence.OpenIndexedFileStore
+	} else if o.layout != "" && o.layout != "legacy-snapshot-v1" {
+		return errors.New("unsupported explicit persistence layout")
+	}
 	if o.profile != "memory-publication" && !persistence {
 		return errors.New("unsupported explicit storage profile")
 	}
@@ -181,7 +188,7 @@ func run(ctx context.Context, o options) error {
 			return err
 		}
 		if persistence {
-			source, err := terminalpersistence.OpenFileStore(terminalpersistence.Options{Path: path, Mode: "reopen", Key: key, Identity: identity, CurrentScope: current})
+			source, err := openPersistence(terminalpersistence.Options{Path: path, Mode: "reopen", Key: key, Identity: identity, CurrentScope: current})
 			if err != nil {
 				return err
 			}
@@ -234,7 +241,7 @@ func run(ctx context.Context, o options) error {
 			return errors.New("new profile requires an independent 32-byte TANSR_JOURNAL_KEY")
 		}
 		defer clear(journalKey)
-		store, err := terminalpersistence.OpenFileStore(terminalpersistence.Options{Path: path, Mode: o.mode, Key: key, Identity: identity, CurrentScope: current})
+		store, err := openPersistence(terminalpersistence.Options{Path: path, Mode: o.mode, Key: key, Identity: identity, CurrentScope: current})
 		if err != nil {
 			return err
 		}

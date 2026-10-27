@@ -37,6 +37,7 @@ func (s *FileStore) CopyTo(ctx context.Context, o CopyOptions) (_ *FileStore, er
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer s.discardCompleteView()
 	if s.closed {
 		return nil, ErrClosed
 	}
@@ -76,7 +77,11 @@ func (s *FileStore) CopyTo(ctx context.Context, o CopyOptions) (_ *FileStore, er
 		}
 		return s.guard(before, ctx)
 	}
-	target, err := openFileStore(targetOptions, seed, true)
+	openTarget, reopenTarget := openFileStore, OpenFileStore
+	if s.indexed != nil {
+		openTarget, reopenTarget = openIndexedFileStore, OpenIndexedFileStore
+	}
+	target, err := openTarget(targetOptions, seed, true)
 	if err != nil {
 		return nil, err
 	}
@@ -94,13 +99,17 @@ func (s *FileStore) CopyTo(ctx context.Context, o CopyOptions) (_ *FileStore, er
 		return nil, err
 	}
 	targetOptions.Mode, targetOptions.CurrentScope, targetOptions.CommitHook = "reopen", s.options.CurrentScope, nil
-	target, err = OpenFileStore(targetOptions)
+	target, err = reopenTarget(targetOptions)
 	if err != nil {
 		return nil, err
 	}
 	if err = s.load(); err != nil {
 		return nil, err
 	}
+	if err = target.load(); err != nil {
+		return nil, err
+	}
+	defer target.discardCompleteView()
 	original, copied := m(detached(s.state)), m(detached(target.state))
 	delete(original, "writes")
 	delete(original, "encryptedBytes")

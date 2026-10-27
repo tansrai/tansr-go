@@ -13,9 +13,42 @@ import (
 
 type obj = map[string]any
 type engine struct {
-	state     obj
+	state obj
+	// The indexed media port provides original facts and exact aggregates. It is
+	// not a partial full-state view and is never passed to the legacy audit.
+	rows      *indexedWorking
 	changed   bool
 	rejection error
+}
+
+func (e *engine) row(table, key string) any {
+	if e.rows != nil {
+		return e.rows.get(table, key)
+	}
+	return m(e.state[table])[key]
+}
+func (e *engine) setRow(table, key string, value any) {
+	if e.rows != nil {
+		e.rows.set(table, key, value)
+		return
+	}
+	m(e.state[table])[key] = value
+}
+func (e *engine) objectRow(key string, material bool) obj {
+	if e.rows != nil {
+		return e.rows.object(key, material)
+	}
+	value := m(e.state["objects"])[key]
+	if value == nil {
+		return nil
+	}
+	return m(value)
+}
+func (e *engine) transferCount() int {
+	if e.rows != nil {
+		return e.rows.totals()["transferFacts"]
+	}
+	return len(m(e.state["transfers"]))
 }
 
 func need(ok bool, code ...string) {
@@ -126,7 +159,7 @@ func initial(id Identity, limits Limits) obj {
 	return obj{"format": format, "identity": i, "limits": l, "root": nil, "objects": obj{}, "transfers": obj{}, "primary": obj{}, "secondary": obj{}, "writes": 0, "encryptedBytes": 0}
 }
 func (e *engine) object(kind string, sha any) []byte {
-	v := m(m(e.state["objects"])[key(kind, sha)])
+	v := e.objectRow(key(kind, sha), true)
 	raw := decode(v["base64"])
 	need(v["kind"] == kind && v["sha256"] == sha && len(raw) == n(v["byteLength"]) && hash(raw) == sha)
 	return raw
@@ -248,8 +281,8 @@ func (e *engine) reuse(row obj) {
 			continue
 		}
 		entry := m(v)
-		found := m(e.state["primary"])[str(entry["primaryKey"])]
-		if found != nil && same(m(found)["entry"], entry) && m(e.state["secondary"])[str(entry["secondaryKey"])] == entry["primaryKey"] {
+		found := e.row("primary", str(entry["primaryKey"]))
+		if found != nil && same(m(found)["entry"], entry) && e.row("secondary", str(entry["secondaryKey"])) == entry["primaryKey"] {
 			ref := m(entry["value"])
 			e.object("receipt-value", ref["sha256"])
 			accept(row, "receipt-value", ref["sha256"], "reused")
@@ -284,7 +317,7 @@ func (e *engine) progress(row obj) obj {
 	received := 0
 	for k, source := range a {
 		if source == "received" {
-			received += n(m(m(e.state["objects"])[k])["byteLength"])
+			received += n(e.objectRow(k, false)["byteLength"])
 		}
 	}
 	return obj{"pagesReady": bitset(pages), "bodyReady": bitset(body), "valuesReady": bitset(values), "receivedBytes": received}
@@ -324,6 +357,9 @@ func (e *engine) planned(row obj) map[string]int {
 	return objects
 }
 func (e *engine) capacity() obj {
+	if e.rows != nil {
+		return e.rows.capacity(e)
+	}
 	s := e.state
 	objects := m(s["objects"])
 	retained := 0
@@ -343,24 +379,9 @@ func (e *engine) capacity() obj {
 		row := m(v)
 		size := len(enc(fields(row, "begin", "owner", "baseRoot", "transfer")))
 		retained += size
-		if m(row["transfer"])["status"] != "staging" {
-			continue
+		for k, amount := range transferUsage(row, func(k string) obj { return m(objects[k]) }) {
+			inc(k, n(amount))
 		}
-		actual, desc := 0, 0
-		for k := range m(row["accepted"]) {
-			o := m(objects[k])
-			actual += n(o["byteLength"])
-			desc += len(enc(fields(o, "kind", "sha256", "byteLength")))
-		}
-		b := m(row["begin"])
-		d := m(b["declared"])
-		remaining := n(d["bytes"]) - actual
-		need(remaining >= 0 && size+desc <= metadataReserve, "capacity_exceeded")
-		inc("activeTransfers", 1)
-		inc("stagingBytes", remaining+n(m(m(row["transfer"])["progress"])["receivedBytes"]))
-		inc("reservedBytes", remaining+metadataReserve-size-desc)
-		inc("reservedObjects", n(d["objects"])-len(m(row["accepted"])))
-		inc("reservedReceiptEntries", n(m(b["index"])["addedCount"]))
 	}
 	u["retainedBytes"] = retained
 	return obj{"limits": detached(s["limits"]), "used": u}
@@ -387,6 +408,10 @@ func expected(root any) any {
 	return obj{"commitRoot": r["commitRoot"], "generation": r["generation"], "bodyEtag": m(r["body"])["sha256"], "indexRoot": m(r["index"])["root"], "indexCount": m(r["index"])["count"]}
 }
 func (e *engine) collect() {
+	if e.rows != nil {
+		e.rows.collect(e)
+		return
+	}
 	live := map[string]bool{}
 	protect := func(root any) {
 		if root != nil {
@@ -452,14 +477,14 @@ func (e *engine) execute(r obj, owner any, recovery func(obj) bool) obj {
 			q := m(r["key"])
 			k := str(q["digest"])
 			if q["kind"] == "secondary" {
-				v := m(e.state["secondary"])[k]
+				v := e.row("secondary", k)
 				k = ""
 				if v != nil {
 					k = str(v)
 				}
 			}
 			out["entry"] = nil
-			if v := m(e.state["primary"])[k]; v != nil {
+			if v := e.row("primary", k); v != nil {
 				entry := m(detached(m(v)["entry"]))
 				ref := m(entry["value"])
 				raw := e.object("receipt-value", ref["sha256"])
@@ -483,10 +508,15 @@ func (e *engine) execute(r obj, owner any, recovery func(obj) bool) obj {
 			offset := n(r["offset"])
 			need(offset <= n(b["byteLength"]), "invalid_request")
 			end := min(n(b["byteLength"]), offset+n(r["length"]))
-			refs := e.bodyRefs(root)
 			raw = []byte{}
 			for i := offset / MaxObject; i < (end+MaxObject-1)/MaxObject; i++ {
-				data := e.object("body-block", m(refs[i])["sha256"])
+				pageIndex := i / 64
+				refs := e.page("body-page", pageIndex, arr(b["pageHashes"])[pageIndex])
+				need(len(refs) == min(64, n(b["blockCount"])-pageIndex*64))
+				ref := m(refs[i%64])
+				validate("Ref", ref)
+				need(n(ref["byteLength"]) == min(MaxObject, n(b["byteLength"])-i*MaxObject))
+				data := e.object("body-block", ref["sha256"])
 				raw = append(raw, data[max(0, offset-i*MaxObject):min(len(data), end-i*MaxObject)]...)
 			}
 			out["bodyEtag"] = b["sha256"]
@@ -500,7 +530,7 @@ func (e *engine) execute(r obj, owner any, recovery func(obj) bool) obj {
 		return out
 	}
 	id := str(r["transferId"])
-	v := m(e.state["transfers"])[id]
+	v := e.row("transfers", id)
 	var row obj
 	if v != nil {
 		row = m(v)
@@ -527,10 +557,10 @@ func (e *engine) execute(r obj, owner any, recovery func(obj) bool) obj {
 		need(n(b["byteLength"]) != 0 || b["sha256"] == hash(nil), "invalid_request")
 		if row == nil {
 			row = obj{"begin": detached(r), "owner": detached(owner), "baseRoot": detached(root), "accepted": obj{}, "transfer": obj{"transferId": id, "intentSha256": r["intentSha256"], "status": "staging", "progress": nil, "result": nil, "rejection": nil}}
-			m(e.state["transfers"])[id] = row
+			e.setRow("transfers", id, row)
 			if !same(expected(root), r["expected"]) {
 				m(row["transfer"])["progress"] = obj{"pagesReady": "", "bodyReady": "", "valuesReady": "", "receivedBytes": 0}
-				need(len(m(e.state["transfers"])) <= n(m(e.state["limits"])["transferFacts"]), "capacity_exceeded")
+				need(e.transferCount() <= n(m(e.state["limits"])["transferFacts"]), "capacity_exceeded")
 				e.reject(row, "revision_conflict")
 				e.checkCapacity()
 			} else {
@@ -590,12 +620,12 @@ func (e *engine) put(row, r obj) {
 	need(allowed, "invalid_request")
 	k := key(kind, sha)
 	o := obj{"kind": kind, "sha256": sha, "byteLength": len(raw), "base64": r["base64"]}
-	objects := m(e.state["objects"])
-	need(objects[k] == nil || same(objects[k], o))
+	oldObject := e.objectRow(k, true)
+	need(oldObject == nil || same(oldObject, o))
 	if _, ok := m(row["accepted"])[k]; ok {
 		return
 	}
-	objects[k] = o
+	e.setRow("objects", k, o)
 	accept(row, kind, sha, "received")
 	var checkErr error
 	func() { defer caught(&checkErr); e.reuse(row); e.planned(row) }()
@@ -617,7 +647,7 @@ func (e *engine) commit(row obj) {
 	for k, size := range planned {
 		_, ok := m(row["accepted"])[k]
 		need(ok, "invalid_request")
-		need(n(m(m(e.state["objects"])[k])["byteLength"]) == size)
+		need(n(e.objectRow(k, false)["byteLength"]) == size)
 	}
 	b := m(row["begin"])
 	if !same(expected(e.state["root"]), b["expected"]) {
@@ -647,7 +677,7 @@ func (e *engine) commit(row obj) {
 	for _, v := range entries {
 		entry := m(v)
 		pk, sk := str(entry["primaryKey"]), str(entry["secondaryKey"])
-		old, other := m(e.state["primary"])[pk], m(e.state["secondary"])[sk]
+		old, other := e.row("primary", pk), e.row("secondary", sk)
 		if old != nil || other != nil {
 			if old == nil || !same(m(old)["entry"], entry) || other != pk {
 				e.reject(row, "request_conflict")
@@ -667,8 +697,8 @@ func (e *engine) commit(row obj) {
 		count++
 		ordinal := strconv.FormatInt(count, 10)
 		previous = hv([]any{"TPV1-ENTRY", previous, ordinal, entry})
-		m(e.state["primary"])[str(entry["primaryKey"])] = obj{"ordinal": ordinal, "entry": detached(entry)}
-		m(e.state["secondary"])[str(entry["secondaryKey"])] = entry["primaryKey"]
+		e.setRow("primary", str(entry["primaryKey"]), obj{"ordinal": ordinal, "entry": detached(entry)})
+		e.setRow("secondary", str(entry["secondaryKey"]), entry["primaryKey"])
 	}
 	root := obj{"generation": strconv.FormatInt(generation, 10), "body": detached(b["body"]), "index": obj{"root": previous, "count": strconv.FormatInt(count, 10)}}
 	root["commitRoot"] = hv([]any{"TPV1-ROOT", e.state["identity"], root})

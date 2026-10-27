@@ -28,6 +28,7 @@ var magic = []byte("Tansr-Go-TerminalPersistence/1\n")
 // Each mutation replaces one snapshot, including reference reclamation. Historical
 // tickets retain Root results, not a promise to retain unreferenced historical bodies.
 type FileStore struct {
+	indexed                     *indexedMedia
 	custodyAssert               func() error
 	mu                          sync.Mutex
 	options                     Options
@@ -303,6 +304,9 @@ func openFileStore(o Options, seed obj, copyOnly bool) (_ *FileStore, err error)
 	return s, nil
 }
 func (s *FileStore) load() error {
+	if s.indexed != nil {
+		return s.indexed.loadComplete()
+	}
 	f, e := s.root.Open(filepath.Base(s.options.Path))
 	if e != nil {
 		return e
@@ -436,6 +440,9 @@ func (s *FileStore) pack(st obj) ([]byte, error) {
 	return packState(packed, s.options.MaxFileBytes)
 }
 func (s *FileStore) save(st obj, before executor.Scope, ctx context.Context) error {
+	if s.indexed != nil {
+		return s.indexed.saveComplete(st, before, ctx)
+	}
 	raw, e := s.pack(st)
 	if e != nil {
 		return AdapterError("capacity_exceeded")
@@ -530,6 +537,9 @@ func (s *FileStore) save(st obj, before executor.Scope, ctx context.Context) err
 func (s *FileStore) Identity() Identity         { return s.options.Identity }
 func (s *FileStore) Capabilities() Capabilities { return Capabilities{true, true} }
 func (s *FileStore) Execute(ctx context.Context, input Request, owner Owner) (output Response, outcome error) {
+	if s.indexed != nil {
+		return s.indexed.execute(ctx, input, owner)
+	}
 	r, e := normalize(input)
 	if e != nil {
 		return nil, e
@@ -653,5 +663,9 @@ func (s *FileStore) Close() error {
 	e := s.closeFiles()
 	s.closed = true
 	s.aead = nil
+	if s.indexed != nil {
+		clear(s.indexed.budgetKey)
+		s.indexed.budgetKey = nil
+	}
 	return e
 }
